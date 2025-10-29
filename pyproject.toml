@@ -29,12 +29,18 @@ dependencies = [
   "dask>=2025.9.1",
   "fastmcp",
   "jupyter>=1.1.1",
+  "pandas",
+  "scipy",
   "xarray>=2025.9.0",
 ]
 optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
+]
+optional-dependencies.examples = [
   "jupyter",
+  "scanpy",
+  "igraph",
 ]
 optional-dependencies.doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
