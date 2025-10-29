@@ -35,6 +35,7 @@ dependencies = [
 ]
 optional-dependencies.dev = [
   "pre-commit",
+  "ruff==0.13.2",
   "twine>=4.0.2",
 ]
 optional-dependencies.doc = [
