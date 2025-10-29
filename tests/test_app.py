@@ -282,9 +282,7 @@ async def test_get_obs_data_mcp(test_data_path):
 async def test_get_X_data_mcp(test_data_path):
     """Test get_X_data through MCP client."""
     async with Client(anndata_mcp.mcp) as client:
-        result = await client.call_tool(
-            "get_X_data", {"path": test_data_path, "row_slice": "0:5", "col_slice": "0:5"}
-        )
+        result = await client.call_tool("get_X_data", {"path": test_data_path, "row_slice": "0:5", "col_slice": "0:5"})
 
         # Access as attributes
         assert result.data.shape == [5, 5]
@@ -296,9 +294,7 @@ async def test_get_X_data_mcp(test_data_path):
 async def test_get_obsm_data_mcp(test_data_path):
     """Test get_obsm_data through MCP client."""
     async with Client(anndata_mcp.mcp) as client:
-        result = await client.call_tool(
-            "get_obsm_data", {"path": test_data_path, "key": "X_umap", "row_slice": "0:10"}
-        )
+        result = await client.call_tool("get_obsm_data", {"path": test_data_path, "key": "X_umap", "row_slice": "0:10"})
 
         data = result.data
         assert data["rows_returned"] == 10

@@ -5,11 +5,7 @@ from anndata_mcp.mcp import mcp
 
 __version__ = version("anndata_mcp")
 
-__all__ = [
-    "mcp",
-    "run_app",
-    "__version__"
-]
+__all__ = ["__version__", "mcp", "run_app"]
 
 
 if __name__ == "__main__":

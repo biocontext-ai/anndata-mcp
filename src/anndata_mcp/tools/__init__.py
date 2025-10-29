@@ -1,19 +1,43 @@
 from ._data_access import (
     get_layer_data as _get_layer_data,
+)
+from ._data_access import (
     get_obs_data as _get_obs_data,
+)
+from ._data_access import (
     get_obsm_data as _get_obsm_data,
+)
+from ._data_access import (
     get_uns_data as _get_uns_data,
+)
+from ._data_access import (
     get_var_data as _get_var_data,
+)
+from ._data_access import (
     get_varm_data as _get_varm_data,
+)
+from ._data_access import (
     get_X_data as _get_X_data,
 )
 from ._exploration import (
     get_attribute_info as _get_attribute_info,
+)
+from ._exploration import (
     get_column_stats as _get_column_stats,
+)
+from ._exploration import (
     get_dataframe_info as _get_dataframe_info,
+)
+from ._exploration import (
     get_grouped_stats as _get_grouped_stats,
+)
+from ._exploration import (
     get_unique_values as _get_unique_values,
+)
+from ._exploration import (
     get_value_counts as _get_value_counts,
+)
+from ._exploration import (
     list_available_keys as _list_available_keys,
 )
 from ._read_anndata import get_anndata_summary as _get_anndata_summary
@@ -36,22 +60,22 @@ get_varm_data = _get_varm_data.fn
 get_uns_data = _get_uns_data.fn
 
 __all__ = [
+    "get_X_data",
     # Summary
     "get_anndata_summary",
     # Exploration
     "get_attribute_info",
-    "get_dataframe_info",
-    "get_unique_values",
     "get_column_stats",
-    "get_value_counts",
+    "get_dataframe_info",
     "get_grouped_stats",
-    "list_available_keys",
+    "get_layer_data",
     # Data Access
     "get_obs_data",
-    "get_var_data",
-    "get_X_data",
-    "get_layer_data",
     "get_obsm_data",
-    "get_varm_data",
+    "get_unique_values",
     "get_uns_data",
+    "get_value_counts",
+    "get_var_data",
+    "get_varm_data",
+    "list_available_keys",
 ]

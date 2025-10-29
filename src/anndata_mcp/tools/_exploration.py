@@ -2,7 +2,6 @@
 
 from typing import Any
 
-import numpy as np
 import pandas as pd
 from anndata.experimental import read_lazy
 from pydantic import BaseModel, Field
@@ -211,7 +210,7 @@ def get_dataframe_info(path: str, attribute: str) -> DataFrameInfo:
                     try:
                         n_unique = int(col_series.nunique())
                         has_nulls = bool(col_series.isna().any())
-                    except Exception:
+                    except Exception as _excp:  # noqa: BLE001
                         pass
 
                 columns.append(
@@ -219,8 +218,10 @@ def get_dataframe_info(path: str, attribute: str) -> DataFrameInfo:
                         name=col, dtype=dtype, n_unique=n_unique, has_nulls=has_nulls, description=f"Column {col}"
                     )
                 )
-            except Exception:
-                columns.append(ColumnInfo(name=col, dtype="unknown", n_unique=None, has_nulls=False, description=f"Column {col}"))
+            except Exception as _excp:  # noqa: BLE001
+                columns.append(
+                    ColumnInfo(name=col, dtype="unknown", n_unique=None, has_nulls=False, description=f"Column {col}")
+                )
 
         index_name = coord_name
 
@@ -241,7 +242,7 @@ def get_dataframe_info(path: str, attribute: str) -> DataFrameInfo:
             if n_rows < 100000:
                 try:
                     n_unique = int(col_data.nunique())
-                except Exception:
+                except Exception as _excp:  # noqa: BLE001
                     n_unique = None
 
             columns.append(
@@ -417,7 +418,7 @@ def get_column_stats(path: str, attribute: str, column: str) -> ColumnStats:
             stats["mean"] = convert_to_serializable(col_data.mean())
             stats["median"] = convert_to_serializable(col_data.median())
             stats["std"] = convert_to_serializable(col_data.std())
-        except Exception:
+        except Exception as _excp:  # noqa: BLE001
             pass
 
     # Categorical/string statistics
@@ -428,13 +429,13 @@ def get_column_stats(path: str, attribute: str, column: str) -> ColumnStats:
             if n_unique <= 20:
                 value_counts = col_data.value_counts().to_dict()
                 stats["value_counts"] = {str(k): int(v) for k, v in value_counts.items()}
-        except Exception:
+        except Exception as _excp:  # noqa: BLE001
             n_unique = None
 
     n_unique_total = None
     try:
         n_unique_total = int(col_data.nunique())
-    except Exception:
+    except Exception as _excp:  # noqa: BLE001
         pass
 
     return ColumnStats(column=column, dtype=dtype, n_unique=n_unique_total, n_nulls=n_nulls, stats=stats)

@@ -9,23 +9,19 @@ Run this script after installing the package:
     python examples/example_script.py
 """
 
-import json
 from pathlib import Path
 
 import scanpy as sc
 
 from anndata_mcp.tools import (
     get_anndata_summary,
-    get_attribute_info,
     get_column_stats,
     get_dataframe_info,
     get_grouped_stats,
-    get_layer_data,
     get_obs_data,
     get_obsm_data,
     get_unique_values,
     get_value_counts,
-    get_var_data,
     get_X_data,
     list_available_keys,
 )
@@ -187,10 +183,7 @@ def explore_grouping_operations(file_path: str):
     print(f"Number of clusters: {grouped_stats['n_groups']}")
     print("\nCluster statistics:")
     for cluster, stats in sorted(grouped_stats["groups"].items())[:3]:
-        print(
-            f"  Cluster {cluster}: mean={stats['mean']:.1f}, "
-            f"median={stats['median']:.1f}, count={stats['count']}"
-        )
+        print(f"  Cluster {cluster}: mean={stats['mean']:.1f}, median={stats['median']:.1f}, count={stats['count']}")
 
 
 def workflow_example(file_path: str):
