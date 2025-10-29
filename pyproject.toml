@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = [ "hatchling" ]
 
 [project]
-name = "anndata_mcp"
+name = "anndata-mcp"
 version = "0.0.1"
 description = "Allows to retrieve information about an AnnData object via MCP"
 readme = "README.md"
@@ -29,12 +29,14 @@ dependencies = [
   "dask>=2025.9.1",
   "fastmcp",
   "jupyter>=1.1.1",
-  "xarray>=2025.9.0",
+  "pandas",
+  "scipy",
+  "xarray>=2025.9",
 ]
 optional-dependencies.dev = [
   "pre-commit",
+  "ruff==0.13.2",
   "twine>=4.0.2",
-  "jupyter",
 ]
 optional-dependencies.doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
@@ -45,17 +47,20 @@ optional-dependencies.doc = [
   # Until pybtex >0.24.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=8.1",
+  "sphinx-autoapi",
   "sphinx-book-theme>=1",
   "sphinx-copybutton",
   "sphinx-tabs",
   # "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
-  "sphinx-autoapi",
 ]
 optional-dependencies.test = [
   "coverage",
+  "igraph",
+  "jupyter",
   "pytest",
   "pytest-asyncio",
+  "scanpy",
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://anndata-mcp.readthedocs.io/"
@@ -66,7 +71,6 @@ scripts.anndata_mcp = "anndata_mcp.main:run_app"
 
 [tool.hatch.build.targets.wheel]
 packages = [ "src/anndata_mcp" ]
-
 
 [tool.hatch.envs.default]
 installer = "uv"

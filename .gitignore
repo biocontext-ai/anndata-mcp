@@ -16,6 +16,12 @@ __pycache__/
 /data/
 /node_modules/
 
+# Examples - ignore generated data but keep scripts
+/examples/data/
+
+# Tests - ignore downloaded test data
+/tests/data/
+
 # docs
 /docs/generated/
 /docs/_build/
