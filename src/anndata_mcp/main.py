@@ -15,11 +15,45 @@ class EnvironmentType(enum.Enum):
 
 
 @click.command(name="run")
-@click.option("-t", "--transport", "transport", type=str, help="MCP transport option. Defaults to 'stdio'.", default="stdio", envvar="MCP_TRANSPORT")
-@click.option("-p", "--port", "port", type=int, help="Port of MCP server. Defaults to '8000'", default=8000, envvar='MCP_PORT', required=False)
-@click.option("-h", "--host", "hostname", type=str, help="Hostname of MCP server. Defaults to '0.0.0.0'", default="0.0.0.0", envvar='MCP_HOSTNAME', required=False)
+@click.option(
+    "-t",
+    "--transport",
+    "transport",
+    type=str,
+    help="MCP transport option. Defaults to 'stdio'.",
+    default="stdio",
+    envvar="MCP_TRANSPORT",
+)
+@click.option(
+    "-p",
+    "--port",
+    "port",
+    type=int,
+    help="Port of MCP server. Defaults to '8000'",
+    default=8000,
+    envvar="MCP_PORT",
+    required=False,
+)
+@click.option(
+    "-h",
+    "--host",
+    "hostname",
+    type=str,
+    help="Hostname of MCP server. Defaults to '0.0.0.0'",
+    default="0.0.0.0",
+    envvar="MCP_HOSTNAME",
+    required=False,
+)
 @click.option("-v", "--version", "version", is_flag=True, help="Get version of package.")
-@click.option("-e", "--env", "environment", type=click.Choice(EnvironmentType, case_sensitive=False), default=EnvironmentType.DEVELOPMENT, envvar="MCP_ENVIRONMENT", help="MCP server environment. Defaults to 'development'.")
+@click.option(
+    "-e",
+    "--env",
+    "environment",
+    type=click.Choice(EnvironmentType, case_sensitive=False),
+    default=EnvironmentType.DEVELOPMENT,
+    envvar="MCP_ENVIRONMENT",
+    help="MCP server environment. Defaults to 'development'.",
+)
 def run_app(
     transport: str = "stdio",
     port: int = 8000,
@@ -37,12 +71,17 @@ def run_app(
     """
     if version is True:
         from anndata_mcp import __version__
+
         click.echo(__version__)
         sys.exit(0)
 
     logger = logging.getLogger(__name__)
 
     from anndata_mcp.mcp import mcp
+
+    # click.echo("Registered MCP tools:")
+    # tools = asyncio.run(mcp._list_tools())
+    # click.echo(tools)
 
     if environment == EnvironmentType.DEVELOPMENT:
         logger.info("Starting MCP server (DEVELOPMENT mode)")
