@@ -23,9 +23,11 @@ class DataView(BaseModel):
         ),
     ]
     data_type: Annotated[str, Field(description="The original type of the data")]
-    slice_shape: Annotated[str, Field(description="The shape of the data after slicing, if applicable, otherwise 'NA'")]
+    slice_shape: Annotated[
+        str | None, Field(description="The shape of the data after slicing, if applicable, otherwise 'NA'")
+    ]
     full_shape: Annotated[
-        str, Field(description="The full shape of the data, before slicing, if applicable, otherwise 'NA'")
+        str | None, Field(description="The full shape of the data, before slicing, if applicable, otherwise 'NA'")
     ]
 
 
@@ -89,7 +91,7 @@ def view_data(
 
     if isinstance(attr_obj, Dataset2D):
         data, slice_shape = extract_data_from_dataset2d(
-            attr_obj, row_slice, columns or attr_obj.columns.tolist(), return_index, return_shape=True
+            attr_obj, columns or attr_obj.columns.tolist(), row_slice, return_index, return_shape=True
         )
         full_shape = str(attr_obj.shape)
     elif isinstance(attr_obj, Array):
@@ -107,8 +109,8 @@ def view_data(
             if hasattr(attr_obj, "keys")
             else str(attr_obj)
         )
-        slice_shape = "NA"
-        full_shape = "NA"
+        slice_shape = None
+        full_shape = None
 
     adata.file.close()
     return DataView(data=data, data_type=attr_obj_type, slice_shape=slice_shape, full_shape=full_shape)
