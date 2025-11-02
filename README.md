@@ -37,9 +37,6 @@ uvx anndata_mcp
     "server-name": {
       "command": "uvx",
       "args": ["anndata_mcp"],
-      "env": {
-        "UV_PYTHON": "3.12" // or required version
-      }
     }
   }
 }
