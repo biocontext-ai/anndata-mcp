@@ -1,0 +1,191 @@
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Annotated
+
+from pydantic import BaseModel, Field
+
+from anndata_mcp.cache import read_lazy_with_cache
+from anndata_mcp.mcp import mcp
+from anndata_mcp.tools.utils import extract_original_type_string, get_shape_str
+
+
+class AnnDataSummary(BaseModel):
+    n_obs: Annotated[int, Field(description="The number of observations (cells) in the AnnData object")]
+    n_vars: Annotated[int, Field(description="The number of variables (genes) in the AnnData object")]
+    X_type: Annotated[tuple[str, str], Field(description="The type and dtype of the X attribute")]
+    obs_columns: Annotated[
+        list[tuple[str, str]], Field(description="The columns of the obs dataframe and their dtypes")
+    ]
+    var_columns: Annotated[
+        list[tuple[str, str]], Field(description="The columns of the var dataframe and their dtypes")
+    ]
+    obsm_keys: Annotated[
+        list[tuple[str, str, str]], Field(description="The keys of the obsm attribute and their types and shapes")
+    ]
+    varm_keys: Annotated[
+        list[tuple[str, str, str]], Field(description="The keys of the varm attribute and their types and shapes")
+    ]
+    obsp_keys: Annotated[
+        list[tuple[str, str]],
+        Field(description="The keys of the obsp attribute and their types, all with shape (n_obs, n_obs)"),
+    ]
+    varp_keys: Annotated[
+        list[tuple[str, str]],
+        Field(description="The keys of the varp attribute and their types, all with shape (n_vars, n_vars)"),
+    ]
+    uns_keys: Annotated[
+        list[tuple[str, str, str]],
+        Field(description="The keys of the uns attribute and their types and shapes (if available, otherwise 'NA')"),
+    ]
+    layers: Annotated[
+        list[tuple[str, str]],
+        Field(description="The layers of the AnnData object (always arrays), all with shape (n_obs, n_vars)"),
+    ]
+    has_raw: Annotated[bool, Field(description="Whether the AnnData object has a raw attribute")]
+    # attr_types: Annotated[dict[str, str], Field(description="The types of the attributes of the AnnData object")]
+    last_modified: Annotated[datetime, Field(description="The last modified time of the AnnData file in UTC")]
+
+
+@mcp.tool
+def get_anndata_summary(
+    path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
+) -> AnnDataSummary:
+    """Get a summary of an AnnData object from a file."""
+    adata = read_lazy_with_cache(path)
+    last_modified = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
+    attributes = ["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers", "raw"]
+    has_attribute = {attr: True if getattr(adata, attr, None) is not None else False for attr in attributes}
+
+    # attr_types = {}
+    # for attr in attributes:
+    #     if hasattr(adata, attr):
+    #         value = getattr(adata, attr)
+    #         attr_types[attr] = raw_type_to_string(type(value), full_name=True)
+    #     else:
+    #         attr_types[attr] = "unavailable (AttributeError)"
+
+    # Close the file to release the file handle and allow the file to be edited
+    adata.file.close()
+    return AnnDataSummary(
+        n_obs=adata.n_obs,
+        n_vars=adata.n_vars,
+        X_type=(extract_original_type_string(adata.X, full_name=True), adata.X.dtype.name),
+        obs_columns=[(col, adata.obs[col].dtype.name) for col in adata.obs.columns.tolist()],
+        var_columns=[(col, adata.var[col].dtype.name) for col in adata.var.columns.tolist()],
+        obsm_keys=[
+            (key, extract_original_type_string(adata.obsm[key], full_name=True), get_shape_str(adata.obsm[key]))
+            for key in adata.obsm.keys()
+        ]
+        if has_attribute["obsm"]
+        else [],
+        varm_keys=[
+            (key, extract_original_type_string(adata.varm[key], full_name=True), get_shape_str(adata.varm[key]))
+            for key in adata.varm.keys()
+        ]
+        if has_attribute["varm"]
+        else [],
+        obsp_keys=[(key, extract_original_type_string(adata.obsp[key], full_name=True)) for key in adata.obsp.keys()]
+        if has_attribute["obsp"]
+        else [],
+        varp_keys=[(key, extract_original_type_string(adata.varp[key], full_name=True)) for key in adata.varp.keys()]
+        if has_attribute["varp"]
+        else [],
+        uns_keys=[
+            (key, extract_original_type_string(adata.uns[key], full_name=True), get_shape_str(adata.uns[key]))
+            for key in adata.uns.keys()
+        ]
+        if has_attribute["uns"]
+        else [],
+        layers=[(key, extract_original_type_string(adata.layers[key], full_name=True)) for key in adata.layers.keys()]
+        if has_attribute["layers"]
+        else [],
+        # attr_types=attr_types,
+        has_raw=has_attribute["raw"],
+        last_modified=last_modified,
+    )
+
+
+def pprint_anndata_summary(summary: AnnDataSummary) -> str:
+    """Return a nicely formatted string representation of the AnnData summary."""
+    lines = [
+        "AnnData Summary",
+        "=" * 60,
+        f"Observations (cells): {summary.n_obs:,}",
+        f"Variables (genes): {summary.n_vars:,}",
+        f"X type: {summary.X_type[0]} ({summary.X_type[1]})",
+        f"Last modified: {summary.last_modified.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+        f"Has raw: {summary.has_raw}",
+        "",
+    ]
+
+    # obs columns
+    if summary.obs_columns:
+        lines.append(f"obs columns ({len(summary.obs_columns)}):")
+        for col, dtype in summary.obs_columns:
+            lines.append(f"  - {col}: {dtype}")
+    else:
+        lines.append("obs columns: (none)")
+
+    # var columns
+    if summary.var_columns:
+        lines.append(f"\nvar columns ({len(summary.var_columns)}):")
+        for col, dtype in summary.var_columns:
+            lines.append(f"  - {col}: {dtype}")
+    else:
+        lines.append("\nvar columns: (none)")
+
+    # obsm keys
+    if summary.obsm_keys:
+        lines.append(f"\nobsm keys ({len(summary.obsm_keys)}):")
+        for key, dtype, shape in summary.obsm_keys:
+            lines.append(f"  - {key}: {dtype} {shape}")
+    else:
+        lines.append("\nobsm keys: (none)")
+
+    # varm keys
+    if summary.varm_keys:
+        lines.append(f"\nvarm keys ({len(summary.varm_keys)}):")
+        for key, dtype, shape in summary.varm_keys:
+            lines.append(f"  - {key}: {dtype} {shape}")
+    else:
+        lines.append("\nvarm keys: (none)")
+
+    # obsp keys
+    if summary.obsp_keys:
+        lines.append(f"\nobsp keys ({len(summary.obsp_keys)}):")
+        for key, dtype in summary.obsp_keys:
+            lines.append(f"  - {key}: {dtype}")
+    else:
+        lines.append("\nobsp keys: (none)")
+
+    # varp keys
+    if summary.varp_keys:
+        lines.append(f"\nvarp keys ({len(summary.varp_keys)}):")
+        for key, dtype in summary.varp_keys:
+            lines.append(f"  - {key}: {dtype}")
+    else:
+        lines.append("\nvarp keys: (none)")
+
+    # uns keys
+    if summary.uns_keys:
+        lines.append(f"\nuns keys ({len(summary.uns_keys)}):")
+        for key, dtype, shape in summary.uns_keys:
+            lines.append(f"  - {key}: {dtype} {shape}")
+    else:
+        lines.append("\nuns keys: (none)")
+
+    # layers
+    if summary.layers:
+        lines.append(f"\nlayers ({len(summary.layers)}):")
+        for layer, dtype in summary.layers:
+            lines.append(f"  - {layer}: {dtype}")
+    else:
+        lines.append("\nlayers: (none)")
+
+    # Attribute types
+    # if summary.attr_types:
+    #     lines.append("\nAttribute types:")
+    #     for attr, attr_type in summary.attr_types.items():
+    #         lines.append(f"  - {attr}: {attr_type}")
+
+    return "\n".join(lines)
