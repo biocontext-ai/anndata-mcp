@@ -9,6 +9,7 @@ from anndata_mcp.cache import read_lazy_with_cache
 from anndata_mcp.mcp import mcp
 from anndata_mcp.tools.utils import (
     extract_data_from_dask_array,
+    extract_data_from_dask_array_with_indices,
     extract_data_from_dataset2d,
     extract_original_type_string,
     get_shape_str,
@@ -38,12 +39,11 @@ def view_raw_data(
         Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],
         Field(description="The attribute to view"),
     ],
-    key: Annotated[str | None, Field(description="The key of the attribute value to view.", default=None)] = None,
-    columns: Annotated[
+    key: Annotated[str | None, Field(description="The key of the attribute value to view.")] = None,
+    columns_or_genes: Annotated[
         list[str] | None,
         Field(
-            description="The columns to view. If None, the entire attribute is considered. Only applied to pandas.DataFrame attributes or attribute values.",
-            default=None,
+            description="Column names or gene names to select. For pandas.DataFrame attributes (e.g., obs, var), these are column names. For 'X' or 'layers' attributes, these are gene names (from var_names) and are used instead of col_start_index/col_stop_index. If None, the entire attribute is considered or col_start_index/col_stop_index is used.",
         ),
     ] = None,
     row_start_index: Annotated[
@@ -70,9 +70,6 @@ def view_raw_data(
             description="The stop index for the column slice. Only applied to attributes or attribute values with a suitable type."
         ),
     ] = 5,
-    return_index: Annotated[
-        bool, Field(description="Whether to return the index for dataframe output", default=True)
-    ] = True,
 ) -> DataView | str:
     """View the data of an AnnData object."""
     row_slice = slice(row_start_index, row_stop_index, None)
@@ -90,12 +87,25 @@ def view_raw_data(
     attr_obj_type = extract_original_type_string(attr_obj, full_name=True)
 
     if isinstance(attr_obj, Dataset2D):
+        # Use columns_or_genes as column names for Dataset2D, or all columns if None
+        selected_columns = columns_or_genes if columns_or_genes is not None else attr_obj.columns.tolist()
         data, slice_shape = extract_data_from_dataset2d(
-            attr_obj, columns or attr_obj.columns.tolist(), row_slice, return_index, return_shape=True
+            attr_obj, selected_columns, row_slice, index=True, return_shape=True
         )
         full_shape = str(attr_obj.shape)
     elif isinstance(attr_obj, Array):
-        data, slice_shape = extract_data_from_dask_array(attr_obj, row_slice, col_slice, return_shape=True)
+        if attribute in ("X", "layers") and columns_or_genes is not None:
+            # Convert gene names to indices for X and layers
+            var_names = adata.var_names.tolist()
+            gene_indices = [var_names.index(gene) for gene in columns_or_genes if gene in var_names]
+            if not gene_indices:
+                adata.file.close()
+                return "None of the provided genes were found in var_names"
+            data, slice_shape = extract_data_from_dask_array_with_indices(
+                attr_obj, row_slice, gene_indices, return_shape=True
+            )
+        else:
+            data, slice_shape = extract_data_from_dask_array(attr_obj, row_slice, col_slice, return_shape=True)
         full_shape = str(attr_obj.shape)
     else:
         data = (

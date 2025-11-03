@@ -83,6 +83,13 @@ def extract_slice_from_dask_array(array: dask.array.core.Array, row_slice: slice
     return array[row_slice, col_slice].compute()
 
 
+def extract_indices_from_dask_array(
+    array: dask.array.core.Array, row_slice: slice, col_indices: list[int]
+) -> np.ndarray:
+    """Extract data from a dask array using column indices."""
+    return array[row_slice, col_indices].compute()
+
+
 def array_to_csv(array: np.ndarray) -> str:
     """Convert a numpy array to a CSV string."""
     return truncate_string("\n".join(pd.DataFrame(array).to_csv(index=False).split("\n")[1::]))
@@ -93,6 +100,17 @@ def extract_data_from_dask_array(
 ) -> tuple[str, str] | str:
     """Extract data from a dask array."""
     data = extract_slice_from_dask_array(array, row_slice, col_slice)
+    if return_shape:
+        return truncate_string(array_to_csv(data)), str(data.shape)
+    else:
+        return truncate_string(array_to_csv(data))
+
+
+def extract_data_from_dask_array_with_indices(
+    array: dask.array.core.Array, row_slice: slice, col_indices: list[int], return_shape: bool = False
+) -> tuple[str, str] | str:
+    """Extract data from a dask array using column indices."""
+    data = extract_indices_from_dask_array(array, row_slice, col_indices)
     if return_shape:
         return truncate_string(array_to_csv(data)), str(data.shape)
     else:
