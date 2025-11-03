@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 import dask
 import numpy as np
 import pandas as pd
+import xarray as xr
 from anndata._core.xarray import Dataset2D
 from dask.array.core import Array
 from pydantic import BaseModel, Field
@@ -24,12 +25,14 @@ def get_descriptive_stats(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
     attribute: Annotated[
         Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],
-        Field(description="The attribute to explore"),
-    ] = "obs",
+        Field(description="The attribute to describe"),
+    ],
     key: Annotated[str | None, Field(description="The key of the attribute value to explore.", default=None)] = None,
-    columns: Annotated[
+    columns_or_genes: Annotated[
         list[str] | None,
-        Field(description="The columns to explore. If None, the entire dataset is considered."),
+        Field(
+            description="The columns to describe. For pandas.DataFrame attributes (e.g., obs, var), these are column names. For 'X' or 'layers' attributes, these are gene names (from var_names). If None, the entire dataset is considered."
+        ),
     ] = None,
     return_value_counts_for_categorical: Annotated[
         bool, Field(description="Whether to return the value counts for categorical columns.")
@@ -46,11 +49,20 @@ def get_descriptive_stats(
         except KeyError:
             adata.file.close()
             return f"Attribute {attribute} with key {key} not found"
+
+    if columns_or_genes is not None and attribute in ("X", "layers"):
+        columns_or_genes = [g for g in columns_or_genes if g in adata.var_names]
+        if len(columns_or_genes) == 0:
+            adata.file.close()
+            return "None of the provided genes were found in var_names"
+        indices = [adata.var_names.tolist().index(g) for g in columns_or_genes]
+        attr_obj = dask_array_to_dataset2d(attr_obj[:, indices], columns_or_genes)
+
     if isinstance(attr_obj, Dataset2D):
-        description = describe_dataset2d(attr_obj, columns)
+        description = describe_dataset2d(attr_obj, columns_or_genes)
         description = truncate_string(description.to_csv())
         if return_value_counts_for_categorical:
-            value_counts = value_counts_dataset2d(attr_obj, columns)
+            value_counts = value_counts_dataset2d(attr_obj, columns_or_genes)
             value_counts = truncate_string(value_counts.to_csv())
         else:
             value_counts = None
@@ -73,7 +85,9 @@ def get_descriptive_stats(
     return exploration_result
 
 
-def describe_dataset2d(dataset2d: Dataset2D, columns: list[str] | None = None) -> pd.DataFrame | str:
+def describe_dataset2d(
+    dataset2d: Dataset2D, columns: list[str] | None = None, index_name: str | None = None
+) -> pd.DataFrame | str:
     """Generate descriptive statistics for a Dataset2D object.
 
     This function provides a statistical summary similar to pandas DataFrame.describe(),
@@ -214,7 +228,8 @@ def describe_dataset2d(dataset2d: Dataset2D, columns: list[str] | None = None) -
             final_stats[col] = {stat: stats[stat] for stat in object_stats if stat in stats}
 
     result_df = pd.DataFrame(final_stats).T
-    result_df.index.name = "column"
+    if index_name is not None:
+        result_df.index.name = index_name
 
     # Ensure appropriate dtypes
     # Convert numeric statistics to float (compatible with NaN)
@@ -413,3 +428,52 @@ def describe_dask_array(array: Array, axis: int | None = None) -> pd.DataFrame:
         result_df.index.name = f"axis_{axis}_index"
 
     return result_df
+
+
+def dask_array_to_dataset2d(
+    dask_array: Array,
+    column_names: list[str],
+    index: pd.Index | None = None,
+    index_name: str = "index",
+) -> Dataset2D:
+    """
+    Convert a dask array to an AnnData Dataset2D with column names.
+
+    Parameters
+    ----------
+    dask_array : dask.array.Array
+        A 2D dask array with shape (n_obs, n_cols)
+    column_names : list[str]
+        List of column names. Must match n_cols.
+    index : pd.Index, optional
+        Custom index. If None, uses RangeIndex.
+    index_name : str
+        Name for the index dimension (default: "index")
+
+    Returns
+    -------
+    Dataset2D
+        A Dataset2D instance wrapping an xarray Dataset
+    """
+    if dask_array.ndim != 2:
+        raise ValueError(f"Expected 2D array, got {dask_array.ndim}D")
+
+    n_obs, n_cols = dask_array.shape
+    if len(column_names) != n_cols:
+        raise ValueError(f"Number of column names ({len(column_names)}) must match number of columns ({n_cols})")
+
+    # Create index coordinate
+    if index is None:
+        index = pd.RangeIndex(n_obs)
+    index_coord = xr.IndexVariable(index_name, index)
+
+    # Create DataArrays for each column
+    data_vars = {}
+    for i, col_name in enumerate(column_names):
+        data_vars[col_name] = (index_name, dask_array[:, i])
+
+    # Create xarray Dataset
+    xr_dataset = xr.Dataset(data_vars, coords={index_name: index_coord})
+
+    # Wrap in Dataset2D
+    return Dataset2D(xr_dataset)
