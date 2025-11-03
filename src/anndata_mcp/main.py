@@ -5,8 +5,6 @@ import sys
 
 import click
 
-from .tools import *  # noqa: F403 import all tools to register them
-
 
 class EnvironmentType(enum.Enum):
     """Enum to define environment type."""
@@ -63,6 +61,14 @@ class EnvironmentType(enum.Enum):
     envvar="MCP_MAX_OUTPUT_LEN",
     help="Maximum output length for truncation. Defaults to 1000.",
 )
+@click.option(
+    "--expose-file-system-tools",
+    "expose_file_system_tools",
+    is_flag=True,
+    default=False,
+    envvar="MCP_EXPOSE_FILE_SYSTEM_TOOLS",
+    help="Expose the file system tool (locate_anndata_stores). Disabled by default.",
+)
 def run_app(
     transport: str = "stdio",
     port: int = 8000,
@@ -70,6 +76,7 @@ def run_app(
     environment: EnvironmentType = EnvironmentType.DEVELOPMENT,
     version: bool = False,
     max_output_len: int = 1000,
+    expose_file_system_tools: bool = False,
 ):
     """Run the MCP server "anndata-mcp".
 
@@ -79,6 +86,7 @@ def run_app(
     The hostname is set via "-h/--host" or the MCP_HOSTNAME environment variable, defaulting to "0.0.0.0" if not set.
     To specify to transform method of the MCP server, set "-e/--env" or the MCP_TRANSPORT environment variable, which defaults to "stdio".
     The maximum output length for truncation is set via "--max-output-len" or the MCP_MAX_OUTPUT_LEN environment variable, defaulting to "1000" if not set.
+    The file system tool can be exposed via "--expose-file-system-tools" or the MCP_EXPOSE_FILE_SYSTEM_TOOLS environment variable, disabled by default.
     """
     if version is True:
         from anndata_mcp import __version__
@@ -86,16 +94,21 @@ def run_app(
         click.echo(__version__)
         sys.exit(0)
 
+    # Set environment variables from command line before importing tools
+    os.environ["MCP_MAX_OUTPUT_LEN"] = str(max_output_len)
+    os.environ["MCP_EXPOSE_FILE_SYSTEM_TOOLS"] = "true" if expose_file_system_tools else "false"
+
+    # Import tools after setting environment variables so conditional imports work
+    # This must be done here to ensure env vars are set before tool registration
+    from . import tools
+
+    # Dynamically import all functions from __all__ to register them
+    for name in tools.__all__:
+        getattr(tools, name)  # Trigger import/registration via decorator
+
     logger = logging.getLogger(__name__)
 
     from anndata_mcp.mcp import mcp
-
-    # Set the max output length environment variable from command line
-    os.environ["MCP_MAX_OUTPUT_LEN"] = str(max_output_len)
-
-    # click.echo("Registered MCP tools:")
-    # tools = asyncio.run(mcp._list_tools())
-    # click.echo(tools)
 
     if environment == EnvironmentType.DEVELOPMENT:
         logger.info("Starting MCP server (DEVELOPMENT mode)")
