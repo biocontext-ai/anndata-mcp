@@ -1,13 +1,16 @@
 from pathlib import Path
 from typing import Annotated, Literal
 
+import dask
+import numpy as np
+import pandas as pd
 from anndata._core.xarray import Dataset2D
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
 from anndata_mcp.cache import read_lazy_with_cache
 from anndata_mcp.mcp import mcp
-from anndata_mcp.tools.utils import describe_dask_array, describe_dataset2d, truncate_string, value_counts_dataset2d
+from anndata_mcp.tools.utils import truncate_string
 
 
 class ExplorationResult(BaseModel):
@@ -68,3 +71,345 @@ def get_descriptive_stats(
     adata.file.close()
     exploration_result = ExplorationResult(description=description, value_counts=value_counts, error=error)
     return exploration_result
+
+
+def describe_dataset2d(dataset2d: Dataset2D, columns: list[str] | None = None) -> pd.DataFrame | str:
+    """Generate descriptive statistics for a Dataset2D object.
+
+    This function provides a statistical summary similar to pandas DataFrame.describe(),
+    including count, mean, std, min, quartiles, and max for numeric columns,
+    and count, unique, top, and freq for object/categorical columns.
+
+    Memory-efficient implementation that processes columns one at a time without
+    loading the entire dataset into memory.
+
+    Parameters
+    ----------
+    dataset2d : Dataset2D
+        The Dataset2D object to describe
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing descriptive statistics for each column
+    """
+    columns = columns or dataset2d.columns.tolist()
+
+    missing_columns = [col for col in set(columns) if col not in set(dataset2d.columns.tolist())]
+    if missing_columns:
+        return f"The following columns are not present in the dataframe: {missing_columns}"
+
+    stats_dict = {}
+    is_numeric_list = []
+
+    for col in columns:
+        # Access column as DataArray - try to compute stats without loading into memory
+        col_array = dataset2d[col]
+
+        # Check if column is numeric by checking dtype (without loading data)
+        is_numeric = pd.api.types.is_numeric_dtype(col_array.dtype) if hasattr(col_array, "dtype") else None
+        is_numeric_list.append(is_numeric)
+
+        if is_numeric:
+            # For numeric columns, compute statistics directly on DataArray without loading
+            # These operations are lazy and compute efficiently (e.g., with Dask chunks)
+            # Compute statistics using DataArray methods - these may use lazy computation
+            count_result = col_array.count()
+            mean_result = col_array.mean()
+            std_result = col_array.std()
+            min_result = col_array.min()
+            max_result = col_array.max()
+            quantile_25 = col_array.quantile(0.25)
+            quantile_50 = col_array.quantile(0.50)
+            quantile_75 = col_array.quantile(0.75)
+
+            # Calculate NaN count: total size - non-null count
+            isnull_result = col_array.isnull().sum()
+
+            # Extract scalar values - compute() triggers actual computation
+            # but only aggregates, not loading full column
+            def _extract_scalar(result):
+                """Extract scalar value from computed result."""
+                computed = result.compute()
+                return computed.values if hasattr(computed, "values") else computed
+
+            count_val = int(_extract_scalar(count_result))
+            mean_val = float(_extract_scalar(mean_result))
+            std_val = float(_extract_scalar(std_result))
+            min_val = float(_extract_scalar(min_result))
+            max_val = float(_extract_scalar(max_result))
+            q25_val = float(_extract_scalar(quantile_25))
+            q50_val = float(_extract_scalar(quantile_50))
+            q75_val = float(_extract_scalar(quantile_75))
+            nan_count = int(_extract_scalar(isnull_result))
+
+            if count_val > 0:
+                stats_dict[col] = {
+                    "count": count_val,
+                    "mean": mean_val,
+                    "std": std_val,
+                    "min": min_val,
+                    "25%": q25_val,
+                    "50%": q50_val,
+                    "75%": q75_val,
+                    "max": max_val,
+                    "#NaN": nan_count,
+                }
+            else:
+                # All null values
+                stats_dict[col] = {
+                    "count": 0,
+                    "mean": np.nan,
+                    "std": np.nan,
+                    "min": np.nan,
+                    "25%": np.nan,
+                    "50%": np.nan,
+                    "75%": np.nan,
+                    "max": np.nan,
+                    "#NaN": nan_count,
+                }
+        else:
+            # For object/categorical columns, still need to load data for value_counts
+            col_df = dataset2d[[col]].to_memory()
+            col_data = col_df[col]
+            non_null = col_data.dropna()
+            count = len(non_null)
+            nan_count = int(col_data.isna().sum())
+
+            if count > 0:
+                value_counts = non_null.value_counts()
+                unique_count = len(value_counts)
+                top_value = value_counts.index[0] if len(value_counts) > 0 else None
+                freq = int(value_counts.iloc[0]) if len(value_counts) > 0 else 0
+
+                stats_dict[col] = {
+                    "count": count,
+                    "unique": unique_count,
+                    "top": top_value,
+                    "freq": freq,
+                    "#NaN": nan_count,
+                }
+            else:
+                # All null values
+                stats_dict[col] = {
+                    "count": 0,
+                    "unique": 0,
+                    "top": None,
+                    "freq": 0,
+                    "#NaN": nan_count,
+                }
+
+    # Convert to DataFrame and reorder columns to match pandas describe() output order
+    numeric_stats = ["count", "mean", "std", "min", "25%", "50%", "75%", "max", "#NaN"]
+    object_stats = ["count", "unique", "top", "freq", "#NaN"]
+
+    # Reorder stats for each column based on type
+    final_stats = {}
+    for col, stats in stats_dict.items():
+        if "mean" in stats:
+            # Numeric column
+            final_stats[col] = {stat: stats[stat] for stat in numeric_stats if stat in stats}
+        elif "unique" in stats:
+            # Object column
+            final_stats[col] = {stat: stats[stat] for stat in object_stats if stat in stats}
+
+    result_df = pd.DataFrame(final_stats).T
+    result_df.index.name = "column"
+
+    # Ensure appropriate dtypes
+    # Convert numeric statistics to float (compatible with NaN)
+    numeric_stat_cols = ["mean", "std", "min", "25%", "50%", "75%", "max"]
+    for col in numeric_stat_cols:
+        if col in result_df.columns:
+            result_df[col] = pd.to_numeric(result_df[col], errors="coerce")
+
+    # Convert count, freq, and #NaN to int
+    if "count" in result_df.columns:
+        result_df["count"] = pd.to_numeric(result_df["count"], errors="coerce").fillna(0).astype(int)
+    if "freq" in result_df.columns:
+        result_df["freq"] = pd.to_numeric(result_df["freq"], errors="coerce").fillna(0).astype(int)
+    if "#NaN" in result_df.columns:
+        result_df["#NaN"] = pd.to_numeric(result_df["#NaN"], errors="coerce").fillna(0).astype(int)
+    result_df["is_numeric"] = is_numeric_list
+    return result_df
+
+
+def value_counts_dataset2d(dataset2d: Dataset2D, columns: list[str] | None = None) -> pd.DataFrame:
+    """Generate value counts for categorical columns in a dataset2d.
+
+    Memory-efficient implementation that processes columns one at a time,
+    only loading categorical (non-numeric) columns into memory.
+
+    Parameters
+    ----------
+    dataset2d : Dataset2D
+        The Dataset2D object to analyze
+    columns : list[str]
+        List of column names to check for value counts
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame with columns ['column', 'value', 'count'] containing
+        value counts for all categorical columns. Numeric columns are skipped.
+    """
+    # Validate columns exist
+    columns = columns or dataset2d.columns.tolist()
+
+    # Identify categorical columns (non-numeric)
+    categorical_columns = []
+    for col in columns:
+        col_array = dataset2d[col]
+        is_numeric = pd.api.types.is_numeric_dtype(col_array.dtype) if hasattr(col_array, "dtype") else None
+        if not is_numeric:
+            categorical_columns.append(col)
+
+    if not categorical_columns:
+        return pd.DataFrame({"column": [], "value": [], "count": []})
+
+    # Process each categorical column one at a time to be memory efficient
+    all_value_counts = []
+
+    for col in categorical_columns:
+        # Load only this column into memory
+        col_df = dataset2d[[col]].to_memory()
+        col_data = col_df[col]
+        value_counts = col_data.value_counts(dropna=False)
+
+        # Convert to DataFrame format with column name
+        for value, count in value_counts.items():
+            all_value_counts.append({"column": col, "value": value, "count": int(count)})
+
+    # Return as DataFrame
+    if all_value_counts:
+        return pd.DataFrame(all_value_counts)
+    else:
+        return pd.DataFrame({"column": [], "value": [], "count": []})
+
+
+def describe_dask_array(array: Array, axis: int | None = None) -> pd.DataFrame:
+    """Generate descriptive statistics for a numerical dask array.
+
+    This function provides a statistical summary similar to pandas DataFrame.describe(),
+    including count (non-NaN), mean, std, min, quartiles, and max.
+
+    Memory-efficient implementation that uses lazy computation to compute statistics
+    without loading the entire array into memory.
+
+    Parameters
+    ----------
+    array : dask.array.core.Array
+        The dask array to describe (must be numerical)
+    axis : int | None, optional
+        Axis along which to compute statistics. If None, statistics are computed
+        over the entire flattened array. If an integer, statistics are computed
+        along that axis (e.g., axis=0 for rows, axis=1 for columns).
+        Default is None.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing descriptive statistics. If axis is None, returns
+        a single-row DataFrame. If axis is specified, returns a DataFrame with
+        one row per slice along that axis.
+    """
+    # Compute statistics using dask array methods - these use lazy computation
+    # For count, we need to count non-NaN values
+    if axis is None:
+        # Statistics over entire flattened array
+        # Flatten array for quantile computation (quantile requires an axis)
+        flattened = array.flatten()
+        count_result = (~dask.array.isnan(array)).sum()
+        mean_result = dask.array.nanmean(array)
+        std_result = dask.array.nanstd(array)
+        min_result = dask.array.nanmin(array)
+        max_result = dask.array.nanmax(array)
+        # Compute quantiles along axis 0 of flattened array using nanquantile
+        quantile_25 = dask.array.nanquantile(flattened, 0.25, axis=0)
+        quantile_50 = dask.array.nanquantile(flattened, 0.50, axis=0)
+        quantile_75 = dask.array.nanquantile(flattened, 0.75, axis=0)
+
+        # Extract scalar values - compute() triggers actual computation
+        count_val = int(count_result.compute())
+        mean_val = float(mean_result.compute())
+        std_val = float(std_result.compute())
+        min_val = float(min_result.compute())
+        max_val = float(max_result.compute())
+        q25_val = float(quantile_25.compute())
+        q50_val = float(quantile_50.compute())
+        q75_val = float(quantile_75.compute())
+
+        if count_val > 0:
+            stats_dict = {
+                "count": count_val,
+                "mean": mean_val,
+                "std": std_val,
+                "min": min_val,
+                "25%": q25_val,
+                "50%": q50_val,
+                "75%": q75_val,
+                "max": max_val,
+            }
+        else:
+            # All NaN values
+            stats_dict = {
+                "count": 0,
+                "mean": np.nan,
+                "std": np.nan,
+                "min": np.nan,
+                "25%": np.nan,
+                "50%": np.nan,
+                "75%": np.nan,
+                "max": np.nan,
+            }
+
+        result_df = pd.DataFrame([stats_dict])
+        result_df.index.name = "statistic"
+    else:
+        # Statistics along specified axis
+        count_result = (~dask.array.isnan(array)).sum(axis=axis)
+        mean_result = dask.array.nanmean(array, axis=axis)
+        std_result = dask.array.nanstd(array, axis=axis)
+        min_result = dask.array.nanmin(array, axis=axis)
+        max_result = dask.array.nanmax(array, axis=axis)
+        quantile_25 = dask.array.nanquantile(array, 0.25, axis=axis)
+        quantile_50 = dask.array.nanquantile(array, 0.50, axis=axis)
+        quantile_75 = dask.array.nanquantile(array, 0.75, axis=axis)
+
+        # Compute all results
+        count_vals = count_result.compute()
+        mean_vals = mean_result.compute()
+        std_vals = std_result.compute()
+        min_vals = min_result.compute()
+        max_vals = max_result.compute()
+        q25_vals = quantile_25.compute()
+        q50_vals = quantile_50.compute()
+        q75_vals = quantile_75.compute()
+
+        # Handle scalar results (when array is 1D)
+        if count_vals.ndim == 0:
+            count_vals = np.array([count_vals])
+            mean_vals = np.array([mean_vals])
+            std_vals = np.array([std_vals])
+            min_vals = np.array([min_vals])
+            max_vals = np.array([max_vals])
+            q25_vals = np.array([q25_vals])
+            q50_vals = np.array([q50_vals])
+            q75_vals = np.array([q75_vals])
+
+        # Create DataFrame
+        stats_dict = {
+            "count": count_vals.astype(int),
+            "mean": mean_vals.astype(float),
+            "std": std_vals.astype(float),
+            "min": min_vals.astype(float),
+            "25%": q25_vals.astype(float),
+            "50%": q50_vals.astype(float),
+            "75%": q75_vals.astype(float),
+            "max": max_vals.astype(float),
+        }
+
+        result_df = pd.DataFrame(stats_dict)
+        result_df.index.name = f"axis_{axis}_index"
+
+    return result_df
