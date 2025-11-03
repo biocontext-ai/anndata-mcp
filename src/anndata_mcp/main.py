@@ -1,5 +1,6 @@
 import enum
 import logging
+import os
 import sys
 
 import click
@@ -54,12 +55,21 @@ class EnvironmentType(enum.Enum):
     envvar="MCP_ENVIRONMENT",
     help="MCP server environment. Defaults to 'development'.",
 )
+@click.option(
+    "--max-output-len",
+    "max_output_len",
+    type=int,
+    default=1000,
+    envvar="MCP_MAX_OUTPUT_LEN",
+    help="Maximum output length for truncation. Defaults to 1000.",
+)
 def run_app(
     transport: str = "stdio",
     port: int = 8000,
     hostname: str = "0.0.0.0",
     environment: EnvironmentType = EnvironmentType.DEVELOPMENT,
     version: bool = False,
+    max_output_len: int = 1000,
 ):
     """Run the MCP server "anndata-mcp".
 
@@ -68,6 +78,7 @@ def run_app(
     The port is set via "-p/--port" or the MCP_PORT environment variable, defaulting to "8000" if not set.
     The hostname is set via "-h/--host" or the MCP_HOSTNAME environment variable, defaulting to "0.0.0.0" if not set.
     To specify to transform method of the MCP server, set "-e/--env" or the MCP_TRANSPORT environment variable, which defaults to "stdio".
+    The maximum output length for truncation is set via "--max-output-len" or the MCP_MAX_OUTPUT_LEN environment variable, defaulting to "1000" if not set.
     """
     if version is True:
         from anndata_mcp import __version__
@@ -78,6 +89,9 @@ def run_app(
     logger = logging.getLogger(__name__)
 
     from anndata_mcp.mcp import mcp
+
+    # Set the max output length environment variable from command line
+    os.environ["MCP_MAX_OUTPUT_LEN"] = str(max_output_len)
 
     # click.echo("Registered MCP tools:")
     # tools = asyncio.run(mcp._list_tools())

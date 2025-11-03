@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 import dask
@@ -5,13 +6,12 @@ import numpy as np
 import pandas as pd
 from anndata._core.xarray import Dataset2D
 
-MAX_STRING_LENGTH = 1000
-
 
 def truncate_string(string: str) -> str:
     """Truncate a string to the maximum length."""
-    if len(string) > MAX_STRING_LENGTH:
-        return string[:MAX_STRING_LENGTH] + "..."
+    max_output_len = int(os.getenv("MCP_MAX_OUTPUT_LEN", "1000"))
+    if len(string) > max_output_len:
+        return string[:max_output_len] + "..."
     return string
 
 
