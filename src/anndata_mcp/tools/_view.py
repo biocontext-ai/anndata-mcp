@@ -32,7 +32,7 @@ class DataView(BaseModel):
 
 
 @mcp.tool
-def view_data(
+def view_raw_data(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file")],
     attribute: Annotated[
         Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],

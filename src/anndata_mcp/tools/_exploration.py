@@ -17,9 +17,12 @@ class ExplorationResult(BaseModel):
 
 
 @mcp.tool
-def explore_data(
+def get_descriptive_stats(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
-    attribute: Annotated[Literal["obs", "var"], Field(description="The attribute to explore")] = "obs",
+    attribute: Annotated[
+        Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],
+        Field(description="The attribute to explore"),
+    ] = "obs",
     key: Annotated[str | None, Field(description="The key of the attribute value to explore.", default=None)] = None,
     columns: Annotated[
         list[str] | None,
@@ -29,7 +32,7 @@ def explore_data(
         bool, Field(description="Whether to return the value counts for categorical columns.")
     ] = False,
 ) -> ExplorationResult:
-    """Provide explorative information about the attribute values of an AnnData object."""
+    """Provide basic descriptive statistics for an attribute or attribute value of an AnnData object."""
     adata = read_lazy_with_cache(path)
 
     attr_obj = getattr(adata, attribute, None)
@@ -55,7 +58,6 @@ def explore_data(
         value_counts = None
         error = None
     else:
-        adata.file.close()
         description = None
         value_counts = None
         error = (

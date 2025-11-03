@@ -47,7 +47,7 @@ class AnnDataSummary(BaseModel):
 
 
 @mcp.tool
-def get_anndata_summary(
+def get_summary(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
 ) -> AnnDataSummary:
     """Get a summary of an AnnData object from a file."""
@@ -55,14 +55,6 @@ def get_anndata_summary(
     last_modified = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
     attributes = ["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers", "raw"]
     has_attribute = {attr: True if getattr(adata, attr, None) is not None else False for attr in attributes}
-
-    # attr_types = {}
-    # for attr in attributes:
-    #     if hasattr(adata, attr):
-    #         value = getattr(adata, attr)
-    #         attr_types[attr] = raw_type_to_string(type(value), full_name=True)
-    #     else:
-    #         attr_types[attr] = "unavailable (AttributeError)"
 
     # Close the file to release the file handle and allow the file to be edited
     adata.file.close()
@@ -105,7 +97,7 @@ def get_anndata_summary(
     )
 
 
-def pprint_anndata_summary(summary: AnnDataSummary) -> str:
+def print_anndata_summary(summary: AnnDataSummary) -> str:
     """Return a nicely formatted string representation of the AnnData summary."""
     lines = [
         "AnnData Summary",
@@ -181,11 +173,5 @@ def pprint_anndata_summary(summary: AnnDataSummary) -> str:
             lines.append(f"  - {layer}: {dtype}")
     else:
         lines.append("\nlayers: (none)")
-
-    # Attribute types
-    # if summary.attr_types:
-    #     lines.append("\nAttribute types:")
-    #     for attr, attr_type in summary.attr_types.items():
-    #         lines.append(f"  - {attr}: {attr_type}")
 
     return "\n".join(lines)
