@@ -6,7 +6,6 @@ from dask.array.core import Array
 from pydantic import BaseModel, Field
 
 from anndata_mcp.cache import read_lazy_with_cache
-from anndata_mcp.mcp import mcp
 from anndata_mcp.tools.utils import (
     extract_data_from_dask_array,
     extract_data_from_dask_array_with_indices,
@@ -32,7 +31,6 @@ class DataView(BaseModel):
     ]
 
 
-@mcp.tool
 def view_raw_data(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file")],
     attribute: Annotated[

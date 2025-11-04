@@ -5,7 +5,6 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from anndata_mcp.cache import read_lazy_with_cache
-from anndata_mcp.mcp import mcp
 from anndata_mcp.tools.utils import extract_original_type_string, get_shape_str
 
 
@@ -46,7 +45,6 @@ class AnnDataSummary(BaseModel):
     last_modified: Annotated[datetime, Field(description="The last modified time of the AnnData file in UTC")]
 
 
-@mcp.tool
 def get_summary(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
 ) -> AnnDataSummary:

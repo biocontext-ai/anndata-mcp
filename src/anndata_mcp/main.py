@@ -98,17 +98,18 @@ def run_app(
     os.environ["MCP_MAX_OUTPUT_LEN"] = str(max_output_len)
     os.environ["MCP_EXPOSE_FILE_SYSTEM_TOOLS"] = "true" if expose_file_system_tools else "false"
 
+    from anndata_mcp.mcp import mcp
+
     # Import tools after setting environment variables so conditional imports work
-    # This must be done here to ensure env vars are set before tool registration
+    # This ensures __all__ is populated correctly based on environment variables
     from . import tools
 
-    # Dynamically import all functions from __all__ to register them
+    # Register all tools from __all__ dynamically
     for name in tools.__all__:
-        getattr(tools, name)  # Trigger import/registration via decorator
+        tool_func = getattr(tools, name)
+        mcp.tool(tool_func)
 
     logger = logging.getLogger(__name__)
-
-    from anndata_mcp.mcp import mcp
 
     if environment == EnvironmentType.DEVELOPMENT:
         logger.info("Starting MCP server (DEVELOPMENT mode)")

@@ -10,7 +10,6 @@ from dask.array.core import Array
 from pydantic import BaseModel, Field
 
 from anndata_mcp.cache import read_lazy_with_cache
-from anndata_mcp.mcp import mcp
 from anndata_mcp.tools.utils import truncate_string
 
 
@@ -20,7 +19,6 @@ class ExplorationResult(BaseModel):
     error: Annotated[str | None, Field(description="Any error message")]
 
 
-@mcp.tool
 def get_descriptive_stats(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
     attribute: Annotated[
