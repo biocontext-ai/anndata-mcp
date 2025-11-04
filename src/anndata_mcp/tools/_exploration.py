@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -6,10 +7,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from anndata._core.xarray import Dataset2D
+from anndata.experimental import read_lazy
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
-from anndata_mcp.cache import read_lazy_with_cache
 from anndata_mcp.tools.utils import truncate_string
 
 
@@ -37,26 +38,26 @@ def get_descriptive_stats(
     ] = False,
 ) -> ExplorationResult:
     """Provide basic descriptive statistics for an attribute or attribute value of an AnnData object."""
-    adata = read_lazy_with_cache(path)
+    adata = read_lazy(path)
 
     attr_obj = getattr(adata, attribute, None)
+    error = None
 
     if key is not None and attr_obj is not None:
         try:
             attr_obj = attr_obj[key]
         except KeyError:
-            adata.file.close()
-            return f"Attribute {attribute} with key {key} not found"
+            error = f"Attribute {attribute} with key {key} not found"
 
-    if columns_or_genes is not None and attribute in ("X", "layers"):
+    if columns_or_genes is not None and attribute in ("X", "layers") and error is None:
         columns_or_genes = [g for g in columns_or_genes if g in adata.var_names]
         if len(columns_or_genes) == 0:
-            adata.file.close()
-            return "None of the provided genes were found in var_names"
-        indices = [adata.var_names.tolist().index(g) for g in columns_or_genes]
-        attr_obj = dask_array_to_dataset2d(attr_obj[:, indices], columns_or_genes)
+            error = "None of the provided genes were found in var_names"
+        else:
+            indices = [adata.var_names.tolist().index(g) for g in columns_or_genes]
+            attr_obj = dask_array_to_dataset2d(attr_obj[:, indices], columns_or_genes)
 
-    if isinstance(attr_obj, Dataset2D):
+    if isinstance(attr_obj, Dataset2D) and error is None:
         description = describe_dataset2d(attr_obj, columns_or_genes)
         description = truncate_string(description.to_csv())
         if return_value_counts_for_categorical:
@@ -65,7 +66,7 @@ def get_descriptive_stats(
         else:
             value_counts = None
         error = None
-    elif isinstance(attr_obj, Array):
+    elif isinstance(attr_obj, Array) and error is None:
         description = describe_dask_array(attr_obj)
         description = truncate_string(description.to_csv())
         value_counts = None
@@ -73,13 +74,15 @@ def get_descriptive_stats(
     else:
         description = None
         value_counts = None
-        error = (
+        error = error or (
             f"Attribute {attribute} is not a dataframe or array"
             if key is None
             else f"Attribute value of {attribute} for key {key} is not a dataframe or array"
         )
-    adata.file.close()
     exploration_result = ExplorationResult(description=description, value_counts=value_counts, error=error)
+    adata.file.close()
+    del adata
+    gc.collect()
     return exploration_result
 
 

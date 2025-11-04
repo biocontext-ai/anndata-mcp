@@ -1,10 +1,11 @@
+import gc
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
+from anndata.experimental import read_lazy
 from pydantic import BaseModel, Field
 
-from anndata_mcp.cache import read_lazy_with_cache
 from anndata_mcp.tools.utils import extract_original_type_string, get_shape_str
 
 
@@ -49,14 +50,13 @@ def get_summary(
     path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
 ) -> AnnDataSummary:
     """Get a summary of an AnnData object from a file."""
-    adata = read_lazy_with_cache(path)
+    adata = read_lazy(path)
     last_modified = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
     attributes = ["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers", "raw"]
     has_attribute = {attr: True if getattr(adata, attr, None) is not None else False for attr in attributes}
 
     # Close the file to release the file handle and allow the file to be edited
-    adata.file.close()
-    return AnnDataSummary(
+    summary = AnnDataSummary(
         n_obs=adata.n_obs,
         n_vars=adata.n_vars,
         X_type=(extract_original_type_string(adata.X, full_name=True), adata.X.dtype.name),
@@ -93,6 +93,10 @@ def get_summary(
         has_raw=has_attribute["raw"],
         last_modified=last_modified,
     )
+    adata.file.close()
+    del adata
+    gc.collect()
+    return summary
 
 
 def print_anndata_summary(summary: AnnDataSummary) -> str:

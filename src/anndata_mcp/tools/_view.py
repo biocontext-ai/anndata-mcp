@@ -1,11 +1,12 @@
+import gc
 from pathlib import Path
 from typing import Annotated, Literal
 
 from anndata._core.xarray import Dataset2D
+from anndata.experimental import read_lazy
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
-from anndata_mcp.cache import read_lazy_with_cache
 from anndata_mcp.tools.utils import (
     extract_data_from_dask_array,
     extract_data_from_dask_array_with_indices,
@@ -70,55 +71,60 @@ def view_raw_data(
     ] = 5,
 ) -> DataView | str:
     """View the data of an AnnData object."""
+    error = None
     row_slice = slice(row_start_index, row_stop_index, None)
     col_slice = slice(col_start_index, col_stop_index, None)
 
-    adata = read_lazy_with_cache(path)
+    adata = read_lazy(path)
     attr_obj = getattr(adata, attribute, None)
     if key is not None and attr_obj is not None:
         try:
             attr_obj = attr_obj[key]
         except KeyError:
             adata.file.close()
-            return f"Attribute {attribute} with key {key} not found"
+            error = f"Attribute {attribute} with key {key} not found"
 
-    attr_obj_type = extract_original_type_string(attr_obj, full_name=True)
-
-    if isinstance(attr_obj, Dataset2D):
-        # Use columns_or_genes as column names for Dataset2D, or all columns if None
-        selected_columns = columns_or_genes if columns_or_genes is not None else attr_obj.columns.tolist()
-        data, slice_shape = extract_data_from_dataset2d(
-            attr_obj, selected_columns, row_slice, index=True, return_shape=True
-        )
-        full_shape = str(attr_obj.shape)
-    elif isinstance(attr_obj, Array):
-        if attribute in ("X", "layers") and columns_or_genes is not None:
-            # Convert gene names to indices for X and layers
-            var_names = adata.var_names.tolist()
-            gene_indices = [var_names.index(gene) for gene in columns_or_genes if gene in var_names]
-            if not gene_indices:
-                adata.file.close()
-                return "None of the provided genes were found in var_names"
-            data, slice_shape = extract_data_from_dask_array_with_indices(
-                attr_obj, row_slice, gene_indices, return_shape=True
+    if error is None:
+        if isinstance(attr_obj, Dataset2D):
+            # Use columns_or_genes as column names for Dataset2D, or all columns if None
+            selected_columns = columns_or_genes if columns_or_genes is not None else attr_obj.columns.tolist()
+            data, slice_shape = extract_data_from_dataset2d(
+                attr_obj, selected_columns, row_slice, index=True, return_shape=True
             )
+            full_shape = str(attr_obj.shape)
+        elif isinstance(attr_obj, Array):
+            if attribute in ("X", "layers") and columns_or_genes is not None:
+                # Convert gene names to indices for X and layers
+                var_names = adata.var_names.tolist()
+                gene_indices = [var_names.index(gene) for gene in columns_or_genes if gene in var_names]
+                if not gene_indices:
+                    adata.file.close()
+                    return "None of the provided genes were found in var_names"
+                data, slice_shape = extract_data_from_dask_array_with_indices(
+                    attr_obj, row_slice, gene_indices, return_shape=True
+                )
+            else:
+                data, slice_shape = extract_data_from_dask_array(attr_obj, row_slice, col_slice, return_shape=True)
+            full_shape = str(attr_obj.shape)
         else:
-            data, slice_shape = extract_data_from_dask_array(attr_obj, row_slice, col_slice, return_shape=True)
-        full_shape = str(attr_obj.shape)
-    else:
-        data = (
-            "Entries: "
-            + ", ".join(
-                [
-                    f"{key}: {extract_original_type_string(attr_obj[key], full_name=True)} {get_shape_str(attr_obj[key])}"
-                    for key in attr_obj.keys()
-                ]
+            data = (
+                "Entries: "
+                + ", ".join(
+                    [
+                        f"{key}: {extract_original_type_string(attr_obj[key], full_name=True)} {get_shape_str(attr_obj[key])}"
+                        for key in attr_obj.keys()
+                    ]
+                )
+                if hasattr(attr_obj, "keys")
+                else str(attr_obj)
             )
-            if hasattr(attr_obj, "keys")
-            else str(attr_obj)
-        )
-        slice_shape = None
-        full_shape = None
-
+            slice_shape = None
+            full_shape = None
+        attr_obj_type = extract_original_type_string(attr_obj, full_name=True)
+        result = DataView(data=data, data_type=attr_obj_type, slice_shape=slice_shape, full_shape=full_shape)
+    else:
+        result = error
     adata.file.close()
-    return DataView(data=data, data_type=attr_obj_type, slice_shape=slice_shape, full_shape=full_shape)
+    del adata
+    gc.collect()
+    return result
