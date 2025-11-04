@@ -3,16 +3,18 @@ build-backend = "hatchling.build"
 requires = [ "hatchling" ]
 
 [project]
-name = "anndata_mcp"
-version = "0.0.1"
+name = "anndata-mcp"
+version = "0.1.0"
 description = "Allows to retrieve information about an AnnData object via MCP"
 readme = "README.md"
 license = { file = "LICENSE" }
 maintainers = [
   { name = "Darius Schaub", email = "schaub.darius@gmail.com" },
+  { name = "Malte Kuehl", email = "malte.kuehl@clin.au.dk" },
 ]
 authors = [
   { name = "Darius Schaub" },
+  { name = "Malte Kuehl" },
 ]
 requires-python = ">=3.11"
 classifiers = [
@@ -23,8 +25,6 @@ classifiers = [
 ]
 dependencies = [
   "anndata>=0.12.2",
-  # for debug logging (referenced from the issue template)
-  # "session-info2",
   "click",
   "dask>=2025.9.1",
   "fastmcp",
