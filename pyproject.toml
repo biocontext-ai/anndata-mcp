@@ -24,17 +24,18 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-  "anndata>=0.12.2",
+  "anndata>=0.12.6",
   "click",
   "dask>=2025.9.1",
   "fastmcp",
-  "jupyter>=1.1.1",
   "xarray>=2025.9.0",
 ]
 optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
   "jupyter",
+  "scanpy",
+  "session_info2",
 ]
 optional-dependencies.doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
