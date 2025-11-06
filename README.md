@@ -60,7 +60,24 @@ If you found a bug, please use the [issue tracker][].
 
 ## Citation
 
-> t.b.a
+If this MCP server is useful to your research, please cite it as below.
+
+```bibtex
+@article{BioContext_AI_Kuehl_Schaub_2025,
+  title={BioContextAI is a community hub for agentic biomedical systems},
+  url={http://dx.doi.org/10.1038/s41587-025-02900-9},
+  urldate = {2025-11-06},
+  doi={10.1038/s41587-025-02900-9},
+  year = {2025},
+  month = nov,
+  journal={Nature Biotechnology},
+  publisher={Springer Science and Business Media LLC},
+  author={Kuehl, Malte and Schaub, Darius P. and Carli, Francesco and Heumos, Lukas and Hellmig, Malte and Fernández-Zapata, Camila and Kaiser, Nico and Schaul, Jonathan and Kulaga, Anton and Usanov, Nikolay and Koutrouli, Mikaela and Ergen, Can and Palla, Giovanni and Krebs, Christian F. and Panzer, Ulf and Bonn, Stefan and Lobentanzer, Sebastian and Saez-Rodriguez, Julio and Puelles, Victor G.},
+  year={2025},
+  month=nov,
+  language={en},
+}
+```
 
 [uv]: https://github.com/astral-sh/uv
 [issue tracker]: https://github.com/dschaub95/anndata-mcp/issues
