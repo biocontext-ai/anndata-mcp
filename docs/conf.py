@@ -5,12 +5,8 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
-# import sys
 from datetime import datetime
 from importlib.metadata import metadata
-from pathlib import Path
-
-HERE = Path(__file__).parent
 
 
 # -- Project information -----------------------------------------------------
@@ -21,14 +17,10 @@ info = metadata("anndata-mcp")
 project_name = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
-version = info["Version"]
+version = release = info["Version"]
 urls = dict(pu.split(", ") for pu in info.get_all("Project-URL"))
 repository_url = urls["Source"]
 
-# The full version, including alpha/beta/rc tags
-release = info["Version"]
-
-# bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
 nitpicky = True  # Warn about broken links
 needs_sphinx = "4.0"
@@ -43,8 +35,6 @@ html_context = {
 
 # -- General configuration ---------------------------------------------------
 
-# Add any Sphinx extension module names here, as strings.
-# They can be extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "myst_nb",
     "sphinx_copybutton",
@@ -68,20 +58,14 @@ autoapi_keep_files = False
 autoapi_add_toctree_entry = False  # We manually add to toctree in index.md
 autoapi_python_use_implicit_namespaces = False
 autoapi_prepend_jinja_directives = True
-# Include private modules (files starting with _)
-autoapi_file_patterns = ["*.py"]
-# Configure AutoAPI to handle docstrings better
-autoapi_type_aliases = {}
-autoapi_ignore = []
-# Mock imports that might cause issues during documentation generation
-autoapi_mock_imports = []
+autoapi_file_patterns = ["*.py"]  # Include private modules (files starting with _)
 autosummary_generate = True
 autodoc_member_order = "groupwise"
 default_role = "literal"
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
-napoleon_use_rtype = True  # having a separate entry generally helps readability
+napoleon_use_rtype = True
 napoleon_use_param = True
 myst_heading_anchors = 6  # create anchors for h1-h6
 myst_enable_extensions = [
@@ -120,9 +104,8 @@ intersphinx_mapping = {
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
-# Suppress warnings
-# Note: Duplicate object descriptions from AutoAPI are expected when modules
-# are documented both in the index and their own pages
+# Suppress duplicate object description warnings from AutoAPI
+# (expected when modules are documented both in index and their own pages)
 suppress_warnings = ["app.add_directive", "ref.duplicate"]
 
 
@@ -138,16 +121,12 @@ def setup(app):
             return False
         return True
 
-    # Add filter to suppress duplicate object warnings
     logger.addFilter(filter_duplicate_warnings)
     return {"version": "0.1", "parallel_read_safe": True}
 
 
 # -- Options for HTML output -------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
@@ -164,17 +143,14 @@ html_theme_options = {
 pygments_style = "default"
 
 nitpick_ignore = [
-    # If building the documentation fails because of a missing link that is outside your control,
-    # you can add an exception to this list.
-    #     ("py:class", "igraph.Graph"),
     # External dependencies without intersphinx
     ("py:class", "fastmcp.FastMCP"),
-    # Pydantic Field - handled by pydantic intersphinx but sometimes not found
+    # Pydantic (sometimes not found via intersphinx)
     ("py:class", "Field"),
     ("py:obj", "pydantic.BaseModel"),
-    # Type annotations that are not classes
+    # Type annotations
     ("py:class", "optional"),
-    # Internal types that may not be documented
+    # Internal types
     ("py:class", "Dataset2D"),
     ("py:class", "pd.DataFrame"),
     ("py:class", "pd.Index"),
