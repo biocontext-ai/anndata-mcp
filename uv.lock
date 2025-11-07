@@ -182,6 +182,7 @@ dependencies = [
     { name = "click" },
     { name = "dask" },
     { name = "fastmcp" },
+    { name = "httpx" },
     { name = "xarray" },
 ]
 
@@ -222,6 +223,7 @@ requires-dist = [
     { name = "dask", specifier = ">=2025.9.1" },
     { name = "docutils", marker = "extra == 'doc'", specifier = ">=0.8,!=0.18.*,!=0.19.*" },
     { name = "fastmcp" },
+    { name = "httpx", specifier = "<1.0" },
     { name = "ipykernel", marker = "extra == 'doc'" },
     { name = "ipython", marker = "extra == 'doc'" },
     { name = "jupyter", marker = "extra == 'dev'" },
@@ -240,7 +242,7 @@ requires-dist = [
     { name = "sphinx-tabs", marker = "extra == 'doc'" },
     { name = "sphinxext-opengraph", marker = "extra == 'doc'" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=4.0.2" },
-    { name = "xarray", specifier = ">=2025.9.0" },
+    { name = "xarray", specifier = ">=2025.9" },
 ]
 provides-extras = ["dev", "doc", "test"]
 

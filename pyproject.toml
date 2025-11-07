@@ -29,6 +29,7 @@ dependencies = [
   "click",
   "dask>=2025.9.1",
   "fastmcp",
+  "httpx<1",         # Constrain to <1.0 to avoid incompatibility with httpx-sse in prerelease tests
   "xarray>=2025.9",
 ]
 optional-dependencies.dev = [
