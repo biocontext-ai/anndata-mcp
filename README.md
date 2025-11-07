@@ -26,7 +26,7 @@ There are several alternative options to install anndata-mcp:
 1. Use `uvx` to run it immediately:
 
 ```bash
-uvx anndata_mcp
+uvx anndata-mcp
 ```
 
 2. Include it in one of various clients that supports the `mcp.json` standard, please use:
@@ -36,7 +36,7 @@ uvx anndata_mcp
   "mcpServers": {
     "server-name": {
       "command": "uvx",
-      "args": ["anndata_mcp"],
+      "args": ["anndata-mcp"],
     }
   }
 }
@@ -45,7 +45,7 @@ uvx anndata_mcp
 3. Install it through `pip`:
 
 ```bash
-pip install --user anndata_mcp
+pip install --user anndata-mcp
 ```
 
 4. Install the latest development version:

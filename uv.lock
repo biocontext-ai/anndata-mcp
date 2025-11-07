@@ -174,7 +174,7 @@ wheels = [
 
 [[package]]
 name = "anndata-mcp"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -223,7 +223,7 @@ requires-dist = [
     { name = "dask", specifier = ">=2025.9.1" },
     { name = "docutils", marker = "extra == 'doc'", specifier = ">=0.8,!=0.18.*,!=0.19.*" },
     { name = "fastmcp" },
-    { name = "httpx", specifier = "<1.0" },
+    { name = "httpx", specifier = "<1" },
     { name = "ipykernel", marker = "extra == 'doc'" },
     { name = "ipython", marker = "extra == 'doc'" },
     { name = "jupyter", marker = "extra == 'dev'" },

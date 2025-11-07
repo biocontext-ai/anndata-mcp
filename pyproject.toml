@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "anndata-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "Allows to retrieve information about an AnnData object via MCP"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -65,7 +65,7 @@ urls.Documentation = "https://anndata-mcp.readthedocs.io/"
 urls.Homepage = "https://github.com/dschaub95/anndata-mcp"
 urls.Source = "https://github.com/dschaub95/anndata-mcp"
 
-scripts.anndata_mcp = "anndata_mcp.main:run_app"
+scripts."anndata-mcp" = "anndata_mcp.main:run_app"
 
 [tool.hatch.build.targets.wheel]
 packages = [ "src/anndata_mcp" ]
