@@ -57,18 +57,19 @@ extensions = [
     "sphinxext.opengraph",
     "autoapi.extension",
 ]
-autoapi_dirs = ['../src/anndata_mcp']
+autoapi_dirs = ["../src/anndata_mcp"]
 autoapi_options = [
     "members",
     "undoc-members",
     "show-inheritance",
-    "show-module-summary",
     "imported-members",
 ]
 autoapi_keep_files = False
-autoapi_add_toctree_entry = True
+autoapi_add_toctree_entry = False  # We manually add to toctree in index.md
 autoapi_python_use_implicit_namespaces = False
 autoapi_prepend_jinja_directives = True
+# Include private modules (files starting with _)
+autoapi_file_patterns = ["*.py"]
 # Configure AutoAPI to handle docstrings better
 autoapi_type_aliases = {}
 autoapi_ignore = []
@@ -110,7 +111,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "click": ("https://click.palletsprojects.com/en/stable/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
-    "pydantic": ("https://docs.pydantic.dev/", None),
+    "pydantic": ("https://docs.pydantic.dev/latest/", None),
     "dask": ("https://docs.dask.org/en/stable/", None),
 }
 
@@ -118,6 +119,28 @@ intersphinx_mapping = {
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
+
+# Suppress warnings
+# Note: Duplicate object descriptions from AutoAPI are expected when modules
+# are documented both in the index and their own pages
+suppress_warnings = ["app.add_directive", "ref.duplicate"]
+
+
+def setup(app):
+    """Configure Sphinx to suppress duplicate object description warnings from AutoAPI."""
+    import logging
+
+    logger = logging.getLogger("sphinx")
+
+    def filter_duplicate_warnings(record):
+        """Filter out duplicate object description warnings from AutoAPI."""
+        if "duplicate object description" in str(record.msg):
+            return False
+        return True
+
+    # Add filter to suppress duplicate object warnings
+    logger.addFilter(filter_duplicate_warnings)
+    return {"version": "0.1", "parallel_read_safe": True}
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -159,4 +182,8 @@ nitpick_ignore = [
     ("py:class", "dask.array.Array"),
     ("py:class", "pandas.DataFrame"),
     ("py:class", "pandas.Index"),
+    # Internal classes in private modules (not documented by AutoAPI)
+    ("py:class", "ExplorationResult"),
+    ("py:class", "AnnDataSummary"),
+    ("py:class", "DataView"),
 ]
