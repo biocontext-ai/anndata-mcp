@@ -24,18 +24,19 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+  "aiohttp>=3.13.2",
   "anndata>=0.12.6",
   "click",
   "dask>=2025.9.1",
   "fastmcp",
-  "xarray>=2025.9.0",
+  "xarray>=2025.9",
 ]
 optional-dependencies.dev = [
-  "pre-commit",
-  "twine>=4.0.2",
   "jupyter",
+  "pre-commit",
   "scanpy",
-  "session_info2",
+  "session-info2",
+  "twine>=4.0.2",
 ]
 optional-dependencies.doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
@@ -46,12 +47,12 @@ optional-dependencies.doc = [
   # Until pybtex >0.24.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=8.1",
+  "sphinx-autoapi",
   "sphinx-book-theme>=1",
   "sphinx-copybutton",
   "sphinx-tabs",
   # "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
-  "sphinx-autoapi",
 ]
 optional-dependencies.test = [
   "coverage",
@@ -67,7 +68,6 @@ scripts.anndata_mcp = "anndata_mcp.main:run_app"
 
 [tool.hatch.build.targets.wheel]
 packages = [ "src/anndata_mcp" ]
-
 
 [tool.hatch.envs.default]
 installer = "uv"
