@@ -58,6 +58,22 @@ extensions = [
     "autoapi.extension",
 ]
 autoapi_dirs = ['../src/anndata_mcp']
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "show-module-summary",
+    "imported-members",
+]
+autoapi_keep_files = False
+autoapi_add_toctree_entry = True
+autoapi_python_use_implicit_namespaces = False
+autoapi_prepend_jinja_directives = True
+# Configure AutoAPI to handle docstrings better
+autoapi_type_aliases = {}
+autoapi_ignore = []
+# Mock imports that might cause issues during documentation generation
+autoapi_mock_imports = []
 autosummary_generate = True
 autodoc_member_order = "groupwise"
 default_role = "literal"
@@ -93,6 +109,9 @@ intersphinx_mapping = {
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "click": ("https://click.palletsprojects.com/en/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "pydantic": ("https://docs.pydantic.dev/", None),
+    "dask": ("https://docs.dask.org/en/stable/", None),
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -125,4 +144,19 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
+    # External dependencies without intersphinx
+    ("py:class", "fastmcp.FastMCP"),
+    # Pydantic Field - handled by pydantic intersphinx but sometimes not found
+    ("py:class", "Field"),
+    ("py:obj", "pydantic.BaseModel"),
+    # Type annotations that are not classes
+    ("py:class", "optional"),
+    # Internal types that may not be documented
+    ("py:class", "Dataset2D"),
+    ("py:class", "pd.DataFrame"),
+    ("py:class", "pd.Index"),
+    ("py:class", "dask.array.core.Array"),
+    ("py:class", "dask.array.Array"),
+    ("py:class", "pandas.DataFrame"),
+    ("py:class", "pandas.Index"),
 ]
