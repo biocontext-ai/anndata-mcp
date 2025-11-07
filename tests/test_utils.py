@@ -1,0 +1,312 @@
+"""Basic tests for anndata_mcp."""
+
+import os
+
+import dask.array as da
+import numpy as np
+import pandas as pd
+import pytest
+import xarray as xr
+from anndata._core.xarray import Dataset2D
+
+from anndata_mcp import __version__
+from anndata_mcp.tools.utils import (
+    array_to_csv,
+    class_string_to_type,
+    extract_data_from_dask_array,
+    extract_data_from_dask_array_with_indices,
+    extract_data_from_dataset2d,
+    extract_indices_from_dask_array,
+    extract_original_type,
+    extract_original_type_string,
+    extract_slice_from_dask_array,
+    get_shape_str,
+    parse_slice,
+    raw_type_to_string,
+    truncate_string,
+)
+
+
+def test_version():
+    """Test that version is defined."""
+    assert __version__ is not None
+    assert isinstance(__version__, str)
+
+
+def test_truncate_string():
+    """Test string truncation."""
+    # Test short string (no truncation)
+    assert truncate_string("short") == "short"
+
+    # Test long string (truncation)
+    long_string = "a" * 2000
+    result = truncate_string(long_string)
+    assert len(result) <= 1000 + 3  # max_output_len + "..."
+    assert result.endswith("...")
+
+    # Test with custom max_output_len
+    os.environ["MCP_MAX_OUTPUT_LEN"] = "10"
+    result = truncate_string("a" * 20)
+    assert len(result) <= 13  # 10 + "..."
+    assert result.endswith("...")
+    # Restore default
+    del os.environ["MCP_MAX_OUTPUT_LEN"]
+
+
+def test_get_shape_str():
+    """Test getting shape string."""
+    import numpy as np
+
+    # Test with numpy array
+    arr = np.array([[1, 2], [3, 4]])
+    assert get_shape_str(arr) == "(2, 2)"
+
+    # Test with object without shape
+    obj = "no shape"
+    assert get_shape_str(obj) == "NA"
+
+
+def test_class_string_to_type():
+    """Test converting class string to type."""
+    assert class_string_to_type("<class 'str'>") == "str"
+    assert class_string_to_type("<class 'int'>") == "int"
+
+
+def test_raw_type_to_string():
+    """Test converting raw type to string."""
+    assert raw_type_to_string(str) == "str"
+    assert raw_type_to_string(int) == "int"
+    assert raw_type_to_string(str, full_name=True) == "str"
+    assert raw_type_to_string(int, full_name=True) == "int"
+
+
+def test_parse_slice():
+    """Test parsing slice strings."""
+    # Test full slice
+    assert parse_slice("0:10") == slice(0, 10, None)
+    assert parse_slice("0:10:2") == slice(0, 10, 2)
+
+    # Test partial slice
+    assert parse_slice(":10") == slice(None, 10, None)
+    assert parse_slice("5:") == slice(5, None, None)
+
+    # Test None
+    assert parse_slice(None) == slice(None)
+
+    # Test invalid slice
+    with pytest.raises(ValueError, match="Slice string must contain"):
+        parse_slice("invalid")
+
+
+def test_extract_original_type():
+    """Test extracting original type from objects."""
+    # Test with regular Python types
+    assert extract_original_type("string") is str
+    assert extract_original_type(42) is int
+    assert extract_original_type([1, 2, 3]) is list
+
+    # Test with numpy array
+    arr = np.array([1, 2, 3])
+    assert extract_original_type(arr) is np.ndarray
+
+    # Test with dask array
+    dask_arr = da.from_array(np.array([1, 2, 3]), chunks=2)
+    # The original type should be the type of the meta
+    assert extract_original_type(dask_arr) is np.ndarray
+
+    # Test with Dataset2D
+    # Create Dataset2D from xarray Dataset
+    dask_arr_2d = da.from_array(np.array([[1, 4], [2, 5], [3, 6]]), chunks=(2, 2))
+    index_coord = xr.IndexVariable("index", pd.RangeIndex(3))
+    data_vars = {"a": ("index", dask_arr_2d[:, 0]), "b": ("index", dask_arr_2d[:, 1])}
+    xr_dataset = xr.Dataset(data_vars, coords={"index": index_coord})
+    dataset2d = Dataset2D(xr_dataset)
+    assert extract_original_type(dataset2d) is pd.DataFrame
+
+
+def test_extract_original_type_string():
+    """Test extracting original type string from objects."""
+    # Test with regular types
+    assert extract_original_type_string("string") == "str"
+    assert extract_original_type_string(42) == "int"
+
+    # Test with numpy array
+    arr = np.array([1, 2, 3])
+    assert extract_original_type_string(arr) == "ndarray"
+
+    # Test with full_name=True
+    assert extract_original_type_string("string", full_name=True) == "str"
+    # When full_name=True, numpy types include the module name
+    result = extract_original_type_string(arr, full_name=True)
+    assert result in ("ndarray", "numpy.ndarray")  # Accept both formats
+
+    # Test with dask array
+    dask_arr = da.from_array(np.array([1, 2, 3]), chunks=2)
+    assert extract_original_type_string(dask_arr) == "ndarray"
+
+    # Test with Dataset2D
+    # Create Dataset2D from xarray Dataset
+    dask_arr_2d = da.from_array(np.array([[1, 4], [2, 5], [3, 6]]), chunks=(2, 2))
+    index_coord = xr.IndexVariable("index", pd.RangeIndex(3))
+    data_vars = {"a": ("index", dask_arr_2d[:, 0]), "b": ("index", dask_arr_2d[:, 1])}
+    xr_dataset = xr.Dataset(data_vars, coords={"index": index_coord})
+    dataset2d = Dataset2D(xr_dataset)
+    assert extract_original_type_string(dataset2d) == "DataFrame"
+
+
+def test_extract_slice_from_dask_array():
+    """Test extracting slice from dask array."""
+    # Create a test dask array
+    data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    dask_arr = da.from_array(data, chunks=(2, 2))
+
+    # Test extracting a slice
+    result = extract_slice_from_dask_array(dask_arr, slice(0, 2), slice(0, 2))
+    expected = np.array([[1, 2], [4, 5]])
+    np.testing.assert_array_equal(result, expected)
+
+    # Test extracting full array
+    result = extract_slice_from_dask_array(dask_arr, slice(None), slice(None))
+    np.testing.assert_array_equal(result, data)
+
+    # Test extracting single row
+    result = extract_slice_from_dask_array(dask_arr, slice(0, 1), slice(None))
+    expected = np.array([[1, 2, 3]])
+    np.testing.assert_array_equal(result, expected)
+
+
+def test_extract_indices_from_dask_array():
+    """Test extracting data from dask array using column indices."""
+    # Create a test dask array
+    data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    dask_arr = da.from_array(data, chunks=(2, 2))
+
+    # Test extracting specific columns
+    result = extract_indices_from_dask_array(dask_arr, slice(0, 2), [0, 2])
+    expected = np.array([[1, 3], [4, 6]])
+    np.testing.assert_array_equal(result, expected)
+
+    # Test extracting single column
+    result = extract_indices_from_dask_array(dask_arr, slice(None), [1])
+    expected = np.array([[2], [5], [8]])
+    np.testing.assert_array_equal(result, expected)
+
+    # Test extracting with row slice
+    result = extract_indices_from_dask_array(dask_arr, slice(1, 3), [0, 1])
+    expected = np.array([[4, 5], [7, 8]])
+    np.testing.assert_array_equal(result, expected)
+
+
+def test_array_to_csv():
+    """Test converting numpy array to CSV string."""
+    # Test simple 2D array
+    arr = np.array([[1, 2], [3, 4]])
+    result = array_to_csv(arr)
+    # Should contain the data without header
+    assert "1,2" in result or "1.0,2.0" in result
+    assert "3,4" in result or "3.0,4.0" in result
+
+    # Test 1D array (will be converted to column)
+    arr_1d = np.array([1, 2, 3])
+    result = array_to_csv(arr_1d)
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+    # Test that truncation works for very large arrays
+    large_arr = np.random.rand(1000, 100)
+    result = array_to_csv(large_arr)
+    # Should be truncated if it exceeds max_output_len
+    max_output_len = int(os.getenv("MCP_MAX_OUTPUT_LEN", "1000"))
+    assert len(result) <= max_output_len + 3  # +3 for "..."
+
+    # Test with custom max_output_len
+    os.environ["MCP_MAX_OUTPUT_LEN"] = "50"
+    result = array_to_csv(arr)
+    assert len(result) <= 53  # 50 + "..."
+    del os.environ["MCP_MAX_OUTPUT_LEN"]
+
+
+def test_extract_data_from_dask_array():
+    """Test extracting data from dask array."""
+    # Create a test dask array
+    data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    dask_arr = da.from_array(data, chunks=(2, 2))
+
+    # Test without return_shape
+    result = extract_data_from_dask_array(dask_arr, slice(0, 2), slice(0, 2))
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+    # Test with return_shape
+    result, shape = extract_data_from_dask_array(dask_arr, slice(0, 2), slice(0, 2), return_shape=True)
+    assert isinstance(result, str)
+    assert isinstance(shape, str)
+    assert shape == "(2, 2)"
+
+    # Test full array
+    result, shape = extract_data_from_dask_array(dask_arr, slice(None), slice(None), return_shape=True)
+    assert shape == "(3, 3)"
+
+
+def test_extract_data_from_dask_array_with_indices():
+    """Test extracting data from dask array using column indices."""
+    # Create a test dask array
+    data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    dask_arr = da.from_array(data, chunks=(2, 2))
+
+    # Test without return_shape
+    result = extract_data_from_dask_array_with_indices(dask_arr, slice(0, 2), [0, 2])
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+    # Test with return_shape
+    result, shape = extract_data_from_dask_array_with_indices(dask_arr, slice(0, 2), [0, 2], return_shape=True)
+    assert isinstance(result, str)
+    assert isinstance(shape, str)
+    assert shape == "(2, 2)"
+
+    # Test single column
+    result, shape = extract_data_from_dask_array_with_indices(dask_arr, slice(None), [1], return_shape=True)
+    assert shape == "(3, 1)"
+
+
+def test_extract_data_from_dataset2d():
+    """Test extracting data from Dataset2D."""
+    # Create Dataset2D from xarray Dataset
+    dask_arr_2d = da.from_array(np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]]), chunks=(2, 3))
+    index_coord = xr.IndexVariable("index", pd.RangeIndex(3))
+    data_vars = {
+        "a": ("index", dask_arr_2d[:, 0]),
+        "b": ("index", dask_arr_2d[:, 1]),
+        "c": ("index", dask_arr_2d[:, 2]),
+    }
+    xr_dataset = xr.Dataset(data_vars, coords={"index": index_coord})
+    dataset2d = Dataset2D(xr_dataset)
+
+    # Test without row_slice, with index
+    result = extract_data_from_dataset2d(dataset2d, ["a", "b"], index=True)
+    assert isinstance(result, str)
+    assert "a,b" in result or "a, b" in result
+
+    # Test without row_slice, without index
+    result = extract_data_from_dataset2d(dataset2d, ["a", "b"], index=False)
+    assert isinstance(result, str)
+
+    # Test with row_slice
+    result = extract_data_from_dataset2d(dataset2d, ["a", "b"], row_slice=slice(0, 2), index=True)
+    assert isinstance(result, str)
+
+    # Test with return_shape
+    result, shape = extract_data_from_dataset2d(dataset2d, ["a", "b"], return_shape=True)
+    assert isinstance(result, str)
+    assert isinstance(shape, str)
+    assert shape == "(3, 2)"
+
+    # Test with row_slice and return_shape
+    result, shape = extract_data_from_dataset2d(dataset2d, ["a", "b"], row_slice=slice(0, 2), return_shape=True)
+    assert isinstance(result, str)
+    assert shape == "(2, 2)"
+
+    # Test single column
+    result, shape = extract_data_from_dataset2d(dataset2d, ["a"], return_shape=True)
+    assert shape == "(3, 1)"
