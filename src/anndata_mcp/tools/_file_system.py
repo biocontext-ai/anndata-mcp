@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class FilePaths(BaseModel):
-    paths: list[Annotated[Path, Field(description="Absolute paths to the AnnData files (.h5ad or .zarr)")]]
+    paths: list[Annotated[str, Field(description="Absolute paths to the AnnData files (.h5ad or .zarr)")]]
 
 
 def locate_anndata_stores(
@@ -15,4 +15,6 @@ def locate_anndata_stores(
     """Locate all AnnData stores (.h5ad or .zarr) in a data directory."""
     prefix = "**/" if recursive else ""
     paths = list(data_dir.glob(f"{prefix}*.h5ad")) + list(data_dir.glob(f"{prefix}*.zarr"))
-    return FilePaths(paths=paths)
+    # Convert Path objects to strings
+    path_strings = [str(path) for path in paths]
+    return FilePaths(paths=path_strings)

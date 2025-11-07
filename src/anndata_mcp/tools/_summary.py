@@ -54,12 +54,7 @@ def get_summary(
     adata = read_lazy_general(path)
 
     # Get last_modified timestamp
-    if _is_url(path):
-        # For URLs, set last_modified to None
-        last_modified = None
-    else:
-        # For file paths, use stat().st_mtime
-        last_modified = datetime.fromtimestamp(Path(path).stat().st_mtime, tz=UTC)
+    last_modified = None if _is_url(path) else datetime.fromtimestamp(Path(path).stat().st_mtime, tz=UTC)
     attributes = ["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers", "raw"]
     has_attribute = {attr: True if getattr(adata, attr, None) is not None else False for attr in attributes}
 

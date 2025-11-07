@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Any
 
 import dask
@@ -26,12 +27,12 @@ class AccessTrackingStore(zarr.storage.FsspecStore):
             return None
 
 
-def _is_url(path: str) -> bool:
+def _is_url(path: str | Path) -> bool:
     """Check if a string is a URL or a file system path.
 
     Parameters
     ----------
-    path : str
+    path : str | Path
         The path or URL to check
 
     Returns
@@ -39,12 +40,14 @@ def _is_url(path: str) -> bool:
     bool
         True if the string appears to be a URL, False otherwise
     """
+    # Convert Path objects to strings
+    path_str = str(path)
     # Check for common URL schemes
     url_schemes = ("http://", "https://", "s3://", "gs://", "gcs://", "abfs://", "az://")
-    return any(path.startswith(scheme) for scheme in url_schemes)
+    return any(path_str.startswith(scheme) for scheme in url_schemes)
 
 
-def read_lazy_general(path_or_url: str):
+def read_lazy_general(path_or_url: str | Path):
     """Read an AnnData object lazily from either a file path or URL.
 
     This function automatically detects whether the input is a URL or a file system path
@@ -53,7 +56,7 @@ def read_lazy_general(path_or_url: str):
 
     Parameters
     ----------
-    path_or_url : str
+    path_or_url : str | Path
         Either a file system path (e.g., "data/test.h5ad" or "data/test.zarr") or
         a URL (e.g., "https://example.com/data.zarr/")
 
@@ -62,13 +65,15 @@ def read_lazy_general(path_or_url: str):
     AnnData
         A lazily-loaded AnnData object
     """
-    if _is_url(path_or_url):
+    # Convert Path objects to strings
+    path_str = str(path_or_url)
+    if _is_url(path_str):
         # For URLs, use AccessTrackingStore.from_url() then read_lazy
-        store = AccessTrackingStore.from_url(path_or_url, read_only=True)
+        store = AccessTrackingStore.from_url(path_str, read_only=True)
         return read_lazy(store)
     else:
         # For file paths, use read_lazy directly
-        return read_lazy(path_or_url)
+        return read_lazy(path_str)
 
 
 def truncate_string(string: str) -> str:
