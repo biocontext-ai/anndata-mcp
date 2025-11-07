@@ -7,7 +7,7 @@
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/dschaub95/anndata-mcp/test.yaml?branch=main
 [badge-docs]: https://img.shields.io/readthedocs/anndata-mcp
 
-Allows to retrieve information about an AnnData object via MCP
+Allows to retrieve information about an AnnData object via MCP using the `read_lazy` function from `anndata`.
 
 ## Getting started
 
@@ -60,7 +60,7 @@ If you found a bug, please use the [issue tracker][].
 
 ## Citation
 
-If this MCP server is useful to your research, please cite it as below.
+If this MCP server is useful to your research, please cite the `BioContextAI` and the `anndata` publications:
 
 ```bibtex
 @article{BioContext_AI_Kuehl_Schaub_2025,
@@ -76,6 +76,24 @@ If this MCP server is useful to your research, please cite it as below.
   year={2025},
   month=nov,
   language={en},
+}
+```
+
+```bibtex
+@article{Virshup2024,
+  title = {anndata: Access and store annotated data
+matrices},
+  volume = {9},
+  ISSN = {2475-9066},
+  url = {http://dx.doi.org/10.21105/joss.04371},
+  DOI = {10.21105/joss.04371},
+  number = {101},
+  journal = {Journal of Open Source Software},
+  publisher = {The Open Journal},
+  author = {Virshup,  Isaac and Rybakov,  Sergei and Theis,  Fabian J. and Angerer,  Philipp and Wolf,  F. Alexander},
+  year = {2024},
+  month = sep,
+  pages = {4371}
 }
 ```
 
