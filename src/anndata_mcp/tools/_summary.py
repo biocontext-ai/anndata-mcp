@@ -3,10 +3,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
-from anndata.experimental import read_lazy
 from pydantic import BaseModel, Field
 
-from anndata_mcp.tools.utils import extract_original_type_string, get_shape_str
+from anndata_mcp.tools.utils import _is_url, extract_original_type_string, get_shape_str, read_lazy_general
 
 
 class AnnDataSummary(BaseModel):
@@ -43,15 +42,24 @@ class AnnDataSummary(BaseModel):
     ]
     has_raw: Annotated[bool, Field(description="Whether the AnnData object has a raw attribute")]
     # attr_types: Annotated[dict[str, str], Field(description="The types of the attributes of the AnnData object")]
-    last_modified: Annotated[datetime, Field(description="The last modified time of the AnnData file in UTC")]
+    last_modified: Annotated[
+        datetime | None, Field(description="The last modified time of the AnnData file in UTC, or None for URLs")
+    ]
 
 
 def get_summary(
-    path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
+    path: Annotated[str, Field(description="Absolute path or URL to the AnnData file (.h5ad or .zarr)")],
 ) -> AnnDataSummary:
-    """Get a summary of an AnnData object from a file."""
-    adata = read_lazy(path)
-    last_modified = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
+    """Get a summary of an AnnData object from a file or URL."""
+    adata = read_lazy_general(path)
+
+    # Get last_modified timestamp
+    if _is_url(path):
+        # For URLs, set last_modified to None
+        last_modified = None
+    else:
+        # For file paths, use stat().st_mtime
+        last_modified = datetime.fromtimestamp(Path(path).stat().st_mtime, tz=UTC)
     attributes = ["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers", "raw"]
     has_attribute = {attr: True if getattr(adata, attr, None) is not None else False for attr in attributes}
 
@@ -107,7 +115,7 @@ def print_anndata_summary(summary: AnnDataSummary) -> str:
         f"Observations (cells): {summary.n_obs:,}",
         f"Variables (genes): {summary.n_vars:,}",
         f"X type: {summary.X_type[0]} ({summary.X_type[1]})",
-        f"Last modified: {summary.last_modified.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+        f"Last modified: {summary.last_modified.strftime('%Y-%m-%d %H:%M:%S UTC') if summary.last_modified else 'N/A'}",
         f"Has raw: {summary.has_raw}",
         "",
     ]

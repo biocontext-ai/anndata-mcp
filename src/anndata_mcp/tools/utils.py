@@ -4,7 +4,71 @@ from typing import Any
 import dask
 import numpy as np
 import pandas as pd
+import zarr
 from anndata._core.xarray import Dataset2D
+from anndata.experimental import read_lazy
+
+
+class AccessTrackingStore(zarr.storage.FsspecStore):
+    """A store that tracks the keys that have been accessed."""
+
+    _keys_hit = set()
+
+    async def get(self, key, *args, **kwargs):
+        """Get a key from the store."""
+        try:
+            res = await super().get(key, *args, **kwargs)
+            if key not in self._keys_hit and res is not None:
+                self._keys_hit.add(key)
+            return res
+        except (KeyError, OSError):
+            # Key doesn't exist or filesystem error - return None
+            return None
+
+
+def _is_url(path: str) -> bool:
+    """Check if a string is a URL or a file system path.
+
+    Parameters
+    ----------
+    path : str
+        The path or URL to check
+
+    Returns
+    -------
+    bool
+        True if the string appears to be a URL, False otherwise
+    """
+    # Check for common URL schemes
+    url_schemes = ("http://", "https://", "s3://", "gs://", "gcs://", "abfs://", "az://")
+    return any(path.startswith(scheme) for scheme in url_schemes)
+
+
+def read_lazy_general(path_or_url: str):
+    """Read an AnnData object lazily from either a file path or URL.
+
+    This function automatically detects whether the input is a URL or a file system path
+    and handles it appropriately. For URLs, it uses AccessTrackingStore.from_url() to
+    create a zarr store, then reads it lazily. For file paths, it uses read_lazy directly.
+
+    Parameters
+    ----------
+    path_or_url : str
+        Either a file system path (e.g., "data/test.h5ad" or "data/test.zarr") or
+        a URL (e.g., "https://example.com/data.zarr/")
+
+    Returns
+    -------
+    AnnData
+        A lazily-loaded AnnData object
+    """
+    if _is_url(path_or_url):
+        # For URLs, use AccessTrackingStore.from_url() then read_lazy
+        store = AccessTrackingStore.from_url(path_or_url, read_only=True)
+        return read_lazy(store)
+    else:
+        # For file paths, use read_lazy directly
+        return read_lazy(path_or_url)
 
 
 def truncate_string(string: str) -> str:

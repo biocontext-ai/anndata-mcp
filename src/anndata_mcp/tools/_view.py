@@ -1,9 +1,7 @@
 import gc
-from pathlib import Path
 from typing import Annotated, Literal
 
 from anndata._core.xarray import Dataset2D
-from anndata.experimental import read_lazy
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
@@ -13,6 +11,7 @@ from anndata_mcp.tools.utils import (
     extract_data_from_dataset2d,
     extract_original_type_string,
     get_shape_str,
+    read_lazy_general,
 )
 
 
@@ -33,7 +32,7 @@ class DataView(BaseModel):
 
 
 def view_raw_data(
-    path: Annotated[Path, Field(description="Absolute path to the AnnData file")],
+    path: Annotated[str, Field(description="Absolute path or URL to the AnnData file")],
     attribute: Annotated[
         Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],
         Field(description="The attribute to view"),
@@ -75,7 +74,7 @@ def view_raw_data(
     row_slice = slice(row_start_index, row_stop_index, None)
     col_slice = slice(col_start_index, col_stop_index, None)
 
-    adata = read_lazy(path)
+    adata = read_lazy_general(path)
     attr_obj = getattr(adata, attribute, None)
     if key is not None and attr_obj is not None:
         try:

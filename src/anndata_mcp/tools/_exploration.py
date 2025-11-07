@@ -1,5 +1,4 @@
 import gc
-from pathlib import Path
 from typing import Annotated, Literal
 
 import dask
@@ -7,11 +6,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from anndata._core.xarray import Dataset2D
-from anndata.experimental import read_lazy
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
-from anndata_mcp.tools.utils import truncate_string
+from anndata_mcp.tools.utils import read_lazy_general, truncate_string
 
 
 class ExplorationResult(BaseModel):
@@ -21,7 +19,7 @@ class ExplorationResult(BaseModel):
 
 
 def get_descriptive_stats(
-    path: Annotated[Path, Field(description="Absolute path to the AnnData file (.h5ad or .zarr)")],
+    path: Annotated[str, Field(description="Absolute path or URL to the AnnData file (.h5ad or .zarr)")],
     attribute: Annotated[
         Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],
         Field(description="The attribute to describe"),
@@ -38,7 +36,7 @@ def get_descriptive_stats(
     ] = False,
 ) -> ExplorationResult:
     """Provide basic descriptive statistics for an attribute or attribute value of an AnnData object."""
-    adata = read_lazy(path)
+    adata = read_lazy_general(path)
 
     attr_obj = getattr(adata, attribute, None)
     error = None
