@@ -327,11 +327,12 @@ class TestLocateAnndataStores:
         # Should find at least some files
         assert len(result.paths) >= 3  # At least 3 files created
 
-        # Check that all paths are Path objects
+        # Check that all paths are strings
         for path in result.paths:
-            assert isinstance(path, Path)
+            assert isinstance(path, str)
             # Check that files have correct extensions
-            assert path.suffix in (".h5ad", "") or path.name.endswith(".zarr")
+            path_obj = Path(path)
+            assert path_obj.suffix in (".h5ad", "") or path_obj.name.endswith(".zarr")
 
     def test_locate_anndata_stores_non_recursive(self, tmp_path):
         """Test locate_anndata_stores with non-recursive search."""
@@ -351,7 +352,7 @@ class TestLocateAnndataStores:
         # Should find files in the root directory but not in subdirectory
         assert len(result.paths) == 2  # Only the 2 files in root
         for path in result.paths:
-            assert isinstance(path, Path)
+            assert isinstance(path, str)
 
     def test_locate_anndata_stores_empty_directory(self, tmp_path):
         """Test locate_anndata_stores with empty directory."""
