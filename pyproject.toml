@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "anndata-mcp"
-version = "0.2.1"
+version = "0.2.2"
 description = "Allows to retrieve information about an AnnData object via MCP"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -62,8 +62,8 @@ optional-dependencies.test = [
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://anndata-mcp.readthedocs.io/"
-urls.Homepage = "https://github.com/dschaub95/anndata-mcp"
-urls.Source = "https://github.com/dschaub95/anndata-mcp"
+urls.Homepage = "https://github.com/biocontext-ai/anndata-mcp"
+urls.Source = "https://github.com/biocontext-ai/anndata-mcp"
 
 scripts."anndata-mcp" = "anndata_mcp.main:run_app"
 

@@ -4,7 +4,7 @@
 [![Tests][badge-tests]][tests]
 [![Documentation][badge-docs]][documentation]
 
-[badge-tests]: https://img.shields.io/github/actions/workflow/status/dschaub95/anndata-mcp/test.yaml?branch=main
+[badge-tests]: https://img.shields.io/github/actions/workflow/status/biocontext-ai/anndata-mcp/test.yaml?branch=main
 [badge-docs]: https://img.shields.io/readthedocs/anndata-mcp
 
 Allows to retrieve information about an AnnData object via MCP using the `read_lazy` function from `anndata`.
@@ -14,7 +14,7 @@ Allows to retrieve information about an AnnData object via MCP using the `read_l
 Please refer to the [documentation][],
 in particular, the [API documentation][].
 
-You can also find the project on [BioContextAI](https://biocontext.ai), the community-hub for biomedical MCP servers: [anndata-mcp on BioContextAI](https://biocontext.ai/registry/dschaub95/anndata-mcp).
+You can also find the project on [BioContextAI](https://biocontext.ai), the community-hub for biomedical MCP servers: [anndata-mcp on BioContextAI](https://biocontext.ai/registry/biocontext-ai/anndata-mcp).
 
 ## Installation
 
@@ -51,7 +51,7 @@ pip install --user anndata-mcp
 4. Install the latest development version:
 
 ```bash
-pip install git+https://github.com/dschaub95/anndata-mcp.git@main
+pip install git+https://github.com/biocontext-ai/anndata-mcp.git@main
 ```
 
 ## Contact
@@ -98,8 +98,8 @@ matrices},
 ```
 
 [uv]: https://github.com/astral-sh/uv
-[issue tracker]: https://github.com/dschaub95/anndata-mcp/issues
-[tests]: https://github.com/dschaub95/anndata-mcp/actions/workflows/test.yaml
+[issue tracker]: https://github.com/biocontext-ai/anndata-mcp/issues
+[tests]: https://github.com/biocontext-ai/anndata-mcp/actions/workflows/test.yaml
 [documentation]: https://anndata-mcp.readthedocs.io
 [changelog]: https://anndata-mcp.readthedocs.io/en/latest/changelog.html
 [api documentation]: https://anndata-mcp.readthedocs.io/en/latest/api.html
