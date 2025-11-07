@@ -57,7 +57,7 @@ extensions = [
     "sphinxext.opengraph",
     "autoapi.extension",
 ]
-autoapi_dirs = ['../src/anndata-mcp']
+autoapi_dirs = ['../src/anndata_mcp']
 autosummary_generate = True
 autodoc_member_order = "groupwise"
 default_role = "literal"
