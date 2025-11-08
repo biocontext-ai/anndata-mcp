@@ -145,11 +145,16 @@ pygments_style = "default"
 nitpick_ignore = [
     # External dependencies without intersphinx
     ("py:class", "fastmcp.FastMCP"),
+    ("py:class", "fsspec.asyn.AsyncFileSystem"),
+    ("py:obj", "zarr.storage.FsspecStore"),
+    ("py:class", "zarr.storage.FsspecStore"),
     # Pydantic (sometimes not found via intersphinx)
     ("py:class", "Field"),
     ("py:obj", "pydantic.BaseModel"),
     # Type annotations
     ("py:class", "optional"),
+    ("py:class", "Path"),  # pathlib.Path
+    ("py:class", "Ellipsis"),  # Built-in constant
     # Internal types
     ("py:class", "Dataset2D"),
     ("py:class", "pd.DataFrame"),
@@ -158,6 +163,7 @@ nitpick_ignore = [
     ("py:class", "dask.array.Array"),
     ("py:class", "pandas.DataFrame"),
     ("py:class", "pandas.Index"),
+    ("py:class", "AnnData"),  # Sometimes not resolved via intersphinx
     # Internal classes in private modules (not documented by AutoAPI)
     ("py:class", "ExplorationResult"),
     ("py:class", "AnnDataSummary"),
