@@ -36,7 +36,7 @@ uvx anndata-mcp
   "mcpServers": {
     "server-name": {
       "command": "uvx",
-      "args": ["anndata-mcp"],
+      "args": ["anndata-mcp"]
     }
   }
 }
