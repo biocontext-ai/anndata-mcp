@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "anndata-mcp"
-version = "0.2.3"
+version = "0.2.4"
 description = "Allows to retrieve information about an AnnData object via MCP"
 readme = "README.md"
 license = { file = "LICENSE" }
