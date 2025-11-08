@@ -36,52 +36,102 @@ def get_descriptive_stats(
     ] = False,
 ) -> ExplorationResult:
     """Provide basic descriptive statistics for an attribute or attribute value of an AnnData object."""
-    adata = read_lazy_general(path)
+    try:
+        adata = read_lazy_general(path)
 
-    attr_obj = getattr(adata, attribute, None)
-    error = None
+        attr_obj = getattr(adata, attribute, None)
+        error = None
 
-    if key is not None and attr_obj is not None:
-        try:
-            attr_obj = attr_obj[key]
-        except KeyError:
-            error = f"Attribute {attribute} with key {key} not found"
+        if key is not None and attr_obj is not None:
+            try:
+                attr_obj = attr_obj[key]
+            except KeyError:
+                error = f"Attribute {attribute} with key {key} not found"
 
-    if columns_or_genes is not None and attribute in ("X", "layers") and error is None:
-        columns_or_genes = [g for g in columns_or_genes if g in adata.var_names]
-        if len(columns_or_genes) == 0:
-            error = "None of the provided genes were found in var_names"
-        else:
-            indices = [adata.var_names.tolist().index(g) for g in columns_or_genes]
-            attr_obj = dask_array_to_dataset2d(attr_obj[:, indices], columns_or_genes)
+        if columns_or_genes is not None and attribute in ("X", "layers") and error is None:
+            columns_or_genes = [g for g in columns_or_genes if g in adata.var_names]
+            if len(columns_or_genes) == 0:
+                error = "None of the provided genes were found in var_names"
+            else:
+                indices = [adata.var_names.tolist().index(g) for g in columns_or_genes]
+                attr_obj = dask_array_to_dataset2d(attr_obj[:, indices], columns_or_genes)
 
-    if isinstance(attr_obj, Dataset2D) and error is None:
-        description = describe_dataset2d(attr_obj, columns_or_genes)
-        description = truncate_string(description.to_csv())
-        if return_value_counts_for_categorical:
-            value_counts = value_counts_dataset2d(attr_obj, columns_or_genes)
-            value_counts = truncate_string(value_counts.to_csv())
-        else:
+        if isinstance(attr_obj, Dataset2D) and error is None:
+            description = describe_dataset2d(attr_obj, columns_or_genes)
+            description = truncate_string(description.to_csv())
+            if return_value_counts_for_categorical:
+                value_counts = value_counts_dataset2d(attr_obj, columns_or_genes)
+                value_counts = truncate_string(value_counts.to_csv())
+            else:
+                value_counts = None
+            error = None
+        elif isinstance(attr_obj, Array) and error is None:
+            description = describe_dask_array(attr_obj)
+            description = truncate_string(description.to_csv())
             value_counts = None
-        error = None
-    elif isinstance(attr_obj, Array) and error is None:
-        description = describe_dask_array(attr_obj)
-        description = truncate_string(description.to_csv())
-        value_counts = None
-        error = None
-    else:
-        description = None
-        value_counts = None
-        error = error or (
-            f"Attribute {attribute} is not a dataframe or array"
-            if key is None
-            else f"Attribute value of {attribute} for key {key} is not a dataframe or array"
-        )
-    exploration_result = ExplorationResult(description=description, value_counts=value_counts, error=error)
-    adata.file.close()
-    del adata
-    gc.collect()
+            error = None
+        else:
+            description = None
+            value_counts = None
+            error = error or (
+                f"Attribute {attribute} is not a dataframe or array"
+                if key is None
+                else f"Attribute value of {attribute} for key {key} is not a dataframe or array"
+            )
+        exploration_result = ExplorationResult(description=description, value_counts=value_counts, error=error)
+        adata.file.close()
+        del adata
+        gc.collect()
+    except Exception as e:  # noqa: BLE001
+        error = truncate_string(str(e), max_output_len=100)
+        exploration_result = ExplorationResult(description=None, value_counts=None, error=error)
     return exploration_result
+
+
+def _compute_categorical_stats(dataset2d: Dataset2D, col: str) -> dict:
+    """Compute descriptive statistics for a categorical column in a Dataset2D.
+
+    Parameters
+    ----------
+    dataset2d : Dataset2D
+        The Dataset2D object containing the column
+    col : str
+        The column name to compute statistics for
+
+    Returns
+    -------
+    dict
+        A dictionary containing count, unique, top, freq, and #NaN statistics
+    """
+    # For object/categorical columns, still need to load data for value_counts
+    col_df = dataset2d[[col]].to_memory()
+    col_data = col_df[col]
+    non_null = col_data.dropna()
+    count = len(non_null)
+    nan_count = int(col_data.isna().sum())
+
+    if count > 0:
+        value_counts = non_null.value_counts()
+        unique_count = len(value_counts)
+        top_value = value_counts.index[0] if len(value_counts) > 0 else None
+        freq = int(value_counts.iloc[0]) if len(value_counts) > 0 else 0
+
+        return {
+            "count": count,
+            "unique": unique_count,
+            "top": top_value,
+            "freq": freq,
+            "#NaN": nan_count,
+        }
+    else:
+        # All null values
+        return {
+            "count": 0,
+            "unique": 0,
+            "top": None,
+            "freq": 0,
+            "#NaN": nan_count,
+        }
 
 
 def describe_dataset2d(
@@ -120,97 +170,94 @@ def describe_dataset2d(
         col_array = dataset2d[col]
 
         # Check if column is numeric by checking dtype (without loading data)
-        is_numeric = pd.api.types.is_numeric_dtype(col_array.dtype) if hasattr(col_array, "dtype") else None
+        # More robust check: explicitly exclude object, string, and categorical dtypes
+        dtype = col_array.dtype if hasattr(col_array, "dtype") else None
+        is_numeric = False
+        if dtype is not None:
+            # First check: exclude object, string, and categorical types explicitly
+            dtype_str = str(dtype).lower()
+            if any(x in dtype_str for x in ["object", "string", "str", "unicode", "category", "categorical"]):
+                is_numeric = False
+            elif hasattr(dtype, "kind") and dtype.kind in ["O", "U", "S"]:  # Object, Unicode string, byte string
+                is_numeric = False
+            elif hasattr(dtype, "categories"):  # Categorical dtype
+                is_numeric = False
+            # Then check if it's a numeric dtype
+            elif pd.api.types.is_numeric_dtype(dtype):
+                is_numeric = True
+
         is_numeric_list.append(is_numeric)
 
         if is_numeric:
             # For numeric columns, compute statistics directly on DataArray without loading
             # These operations are lazy and compute efficiently (e.g., with Dask chunks)
             # Compute statistics using DataArray methods - these may use lazy computation
-            count_result = col_array.count()
-            mean_result = col_array.mean()
-            std_result = col_array.std()
-            min_result = col_array.min()
-            max_result = col_array.max()
-            quantile_25 = col_array.quantile(0.25)
-            quantile_50 = col_array.quantile(0.50)
-            quantile_75 = col_array.quantile(0.75)
+            # Wrap quantile computation in try-except to catch any dtype issues
+            try:
+                count_result = col_array.count()
+                mean_result = col_array.mean()
+                std_result = col_array.std()
+                min_result = col_array.min()
+                max_result = col_array.max()
+                quantile_25 = col_array.quantile(0.25)
+                quantile_50 = col_array.quantile(0.50)
+                quantile_75 = col_array.quantile(0.75)
 
-            # Calculate NaN count: total size - non-null count
-            isnull_result = col_array.isnull().sum()
+                # Calculate NaN count: total size - non-null count
+                isnull_result = col_array.isnull().sum()
 
-            # Extract scalar values - compute() triggers actual computation
-            # but only aggregates, not loading full column
-            def _extract_scalar(result):
-                """Extract scalar value from computed result."""
-                computed = result.compute()
-                return computed.values if hasattr(computed, "values") else computed
+                # Extract scalar values - compute() triggers actual computation
+                # but only aggregates, not loading full column
+                def _extract_scalar(result):
+                    """Extract scalar value from computed result."""
+                    computed = result.compute()
+                    return computed.values if hasattr(computed, "values") else computed
 
-            count_val = int(_extract_scalar(count_result))
-            mean_val = float(_extract_scalar(mean_result))
-            std_val = float(_extract_scalar(std_result))
-            min_val = float(_extract_scalar(min_result))
-            max_val = float(_extract_scalar(max_result))
-            q25_val = float(_extract_scalar(quantile_25))
-            q50_val = float(_extract_scalar(quantile_50))
-            q75_val = float(_extract_scalar(quantile_75))
-            nan_count = int(_extract_scalar(isnull_result))
+                count_val = int(_extract_scalar(count_result))
+                mean_val = float(_extract_scalar(mean_result))
+                std_val = float(_extract_scalar(std_result))
+                min_val = float(_extract_scalar(min_result))
+                max_val = float(_extract_scalar(max_result))
+                q25_val = float(_extract_scalar(quantile_25))
+                q50_val = float(_extract_scalar(quantile_50))
+                q75_val = float(_extract_scalar(quantile_75))
+                nan_count = int(_extract_scalar(isnull_result))
 
-            if count_val > 0:
-                stats_dict[col] = {
-                    "count": count_val,
-                    "mean": mean_val,
-                    "std": std_val,
-                    "min": min_val,
-                    "25%": q25_val,
-                    "50%": q50_val,
-                    "75%": q75_val,
-                    "max": max_val,
-                    "#NaN": nan_count,
-                }
-            else:
-                # All null values
-                stats_dict[col] = {
-                    "count": 0,
-                    "mean": np.nan,
-                    "std": np.nan,
-                    "min": np.nan,
-                    "25%": np.nan,
-                    "50%": np.nan,
-                    "75%": np.nan,
-                    "max": np.nan,
-                    "#NaN": nan_count,
-                }
+                if count_val > 0:
+                    stats_dict[col] = {
+                        "count": count_val,
+                        "mean": mean_val,
+                        "std": std_val,
+                        "min": min_val,
+                        "25%": q25_val,
+                        "50%": q50_val,
+                        "75%": q75_val,
+                        "max": max_val,
+                        "#NaN": nan_count,
+                    }
+                else:
+                    # All null values
+                    stats_dict[col] = {
+                        "count": 0,
+                        "mean": np.nan,
+                        "std": np.nan,
+                        "min": np.nan,
+                        "25%": np.nan,
+                        "50%": np.nan,
+                        "75%": np.nan,
+                        "max": np.nan,
+                        "#NaN": nan_count,
+                    }
+            except (ValueError, TypeError):
+                # If quantile computation fails, treat as categorical
+                # This can happen if dtype check was incorrect
+                is_numeric = False
+                is_numeric_list[-1] = False
+                # Use helper function to compute categorical stats
+                stats_dict[col] = _compute_categorical_stats(dataset2d, col)
         else:
-            # For object/categorical columns, still need to load data for value_counts
-            col_df = dataset2d[[col]].to_memory()
-            col_data = col_df[col]
-            non_null = col_data.dropna()
-            count = len(non_null)
-            nan_count = int(col_data.isna().sum())
-
-            if count > 0:
-                value_counts = non_null.value_counts()
-                unique_count = len(value_counts)
-                top_value = value_counts.index[0] if len(value_counts) > 0 else None
-                freq = int(value_counts.iloc[0]) if len(value_counts) > 0 else 0
-
-                stats_dict[col] = {
-                    "count": count,
-                    "unique": unique_count,
-                    "top": top_value,
-                    "freq": freq,
-                    "#NaN": nan_count,
-                }
-            else:
-                # All null values
-                stats_dict[col] = {
-                    "count": 0,
-                    "unique": 0,
-                    "top": None,
-                    "freq": 0,
-                    "#NaN": nan_count,
-                }
+            # For object/categorical columns, use helper function
+            stats_dict[col] = _compute_categorical_stats(dataset2d, col)
 
     # Convert to DataFrame and reorder columns to match pandas describe() output order
     numeric_stats = ["count", "mean", "std", "min", "25%", "50%", "75%", "max", "#NaN"]
@@ -274,7 +321,21 @@ def value_counts_dataset2d(dataset2d: Dataset2D, columns: list[str] | None = Non
     categorical_columns = []
     for col in columns:
         col_array = dataset2d[col]
-        is_numeric = pd.api.types.is_numeric_dtype(col_array.dtype) if hasattr(col_array, "dtype") else None
+        # More robust check: explicitly exclude object, string, and categorical dtypes
+        dtype = col_array.dtype if hasattr(col_array, "dtype") else None
+        is_numeric = False
+        if dtype is not None:
+            # First check: exclude object, string, and categorical types explicitly
+            dtype_str = str(dtype).lower()
+            if any(x in dtype_str for x in ["object", "string", "str", "unicode", "category", "categorical"]):
+                is_numeric = False
+            elif hasattr(dtype, "kind") and dtype.kind in ["O", "U", "S"]:  # Object, Unicode string, byte string
+                is_numeric = False
+            elif hasattr(dtype, "categories"):  # Categorical dtype
+                is_numeric = False
+            # Then check if it's a numeric dtype
+            elif pd.api.types.is_numeric_dtype(dtype):
+                is_numeric = True
         if not is_numeric:
             categorical_columns.append(col)
 

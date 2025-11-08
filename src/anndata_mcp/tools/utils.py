@@ -76,9 +76,9 @@ def read_lazy_general(path_or_url: str | Path):
         return read_lazy(path_str)
 
 
-def truncate_string(string: str) -> str:
+def truncate_string(string: str, max_output_len: int | None = None) -> str:
     """Truncate a string to the maximum length."""
-    max_output_len = int(os.getenv("MCP_MAX_OUTPUT_LEN", "1000"))
+    max_output_len = max_output_len or int(os.getenv("MCP_MAX_OUTPUT_LEN", "1000"))
     if len(string) > max_output_len:
         return string[:max_output_len] + "..."
     return string

@@ -112,8 +112,15 @@ class TestGetSummary:
     def test_get_summary_nonexistent_file(self):
         """Test get_summary with nonexistent file."""
         nonexistent_path = "/nonexistent/file.h5ad"
-        with pytest.raises((FileNotFoundError, OSError)):
-            get_summary(nonexistent_path)
+        summary = get_summary(nonexistent_path)
+        assert summary.error is not None
+        assert summary.n_obs is None
+        assert summary.n_vars is None
+        # Verify the error message indicates a file not found error
+        error_lower = summary.error.lower()
+        assert any(
+            keyword in error_lower for keyword in ["file", "not found", "no such file", "cannot find", "does not exist"]
+        )
 
 
 class TestGetDescriptiveStats:
@@ -210,8 +217,15 @@ class TestGetDescriptiveStats:
     def test_get_descriptive_stats_nonexistent_file(self):
         """Test get_descriptive_stats with nonexistent file."""
         nonexistent_path = "/nonexistent/file.h5ad"
-        with pytest.raises((FileNotFoundError, OSError)):
-            get_descriptive_stats(nonexistent_path, attribute="X")
+        result = get_descriptive_stats(nonexistent_path, attribute="X")
+        assert result.error is not None
+        assert result.description is None
+        assert result.value_counts is None
+        # Verify the error message indicates a file not found error
+        error_lower = result.error.lower()
+        assert any(
+            keyword in error_lower for keyword in ["file", "not found", "no such file", "cannot find", "does not exist"]
+        )
 
 
 class TestViewRawData:
@@ -281,8 +295,10 @@ class TestViewRawData:
         """Test view_raw_data with invalid key."""
         result = view_raw_data(str(test_h5ad_path), attribute="obsm", key="nonexistent_key")
 
-        assert isinstance(result, str)
-        assert "not found" in result.lower()
+        assert isinstance(result, DataView)
+        assert result.error is not None
+        assert "not found" in result.error.lower()
+        assert result.data is None
 
     def test_view_raw_data_with_columns(self, test_h5ad_path):
         """Test view_raw_data with specific columns."""
@@ -302,8 +318,16 @@ class TestViewRawData:
     def test_view_raw_data_nonexistent_file(self):
         """Test view_raw_data with nonexistent file."""
         nonexistent_path = "/nonexistent/file.h5ad"
-        with pytest.raises((FileNotFoundError, OSError)):
-            view_raw_data(nonexistent_path, attribute="X")
+        result = view_raw_data(nonexistent_path, attribute="X")
+        assert isinstance(result, DataView)
+        assert result.error is not None
+        assert result.data is None
+        assert result.data_type is None
+        # Verify the error message indicates a file not found error
+        error_lower = result.error.lower()
+        assert any(
+            keyword in error_lower for keyword in ["file", "not found", "no such file", "cannot find", "does not exist"]
+        )
 
 
 class TestLocateAnndataStores:
