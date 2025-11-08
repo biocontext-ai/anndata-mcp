@@ -1,4 +1,4 @@
-# anndata-mcp
+# AnnData MCP
 
 [![BioContextAI - Registry](https://img.shields.io/badge/Registry-package?style=flat&label=BioContextAI&labelColor=%23fff&color=%233555a1&link=https%3A%2F%2Fbiocontext.ai%2Fregistry)](https://biocontext.ai/registry)
 [![Tests][badge-tests]][tests]
