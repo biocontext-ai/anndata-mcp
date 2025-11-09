@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "anndata-mcp"
-version = "0.2.4"
+version = "0.2.5"
 description = "Allows to retrieve information about an AnnData object via MCP"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -66,6 +66,7 @@ urls.Homepage = "https://github.com/biocontext-ai/anndata-mcp"
 urls.Source = "https://github.com/biocontext-ai/anndata-mcp"
 
 scripts."anndata-mcp" = "anndata_mcp.main:run_app"
+scripts.anndata_mcp = "anndata_mcp.main:run_app"
 
 [tool.hatch.build.targets.wheel]
 packages = [ "src/anndata_mcp" ]
