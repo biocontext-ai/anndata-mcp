@@ -24,7 +24,13 @@ def get_descriptive_stats(
         Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],
         Field(description="The attribute to describe"),
     ],
-    key: Annotated[str | None, Field(description="The key of the attribute value to explore.", default=None)] = None,
+    key: Annotated[
+        str | None,
+        Field(
+            description="The key of the attribute value to explore. Should be None for attributes X, obs, and var.",
+            default=None,
+        ),
+    ] = None,
     columns_or_genes: Annotated[
         list[str] | None,
         Field(
@@ -35,14 +41,14 @@ def get_descriptive_stats(
         bool, Field(description="Whether to return the value counts for categorical columns.")
     ] = False,
 ) -> ExplorationResult:
-    """Provide basic descriptive statistics for an attribute or attribute value of an AnnData object."""
+    """Provide basic descriptive statistics (e.g., count, mean, std, min, max, etc. or value counts) for an attribute or attribute value of an AnnData object."""
     try:
         adata = read_lazy_general(path)
 
         attr_obj = getattr(adata, attribute, None)
         error = None
 
-        if key is not None and attr_obj is not None:
+        if key is not None and attr_obj is not None and attribute not in ("X", "obs", "var"):
             try:
                 attr_obj = attr_obj[key]
             except KeyError:
