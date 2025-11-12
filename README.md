@@ -18,7 +18,7 @@ You can also find the project on [BioContextAI](https://biocontext.ai), the comm
 
 ## Installation
 
-You need to have Python 3.10 or newer installed on your system.
+You need to have Python 3.11 or newer installed on your system.
 If you don't have Python installed, we recommend installing [uv][].
 
 There are several alternative options to install anndata-mcp:
