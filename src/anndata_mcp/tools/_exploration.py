@@ -18,6 +18,45 @@ class ExplorationResult(BaseModel):
     error: Annotated[str | None, Field(description="Any error message")]
 
 
+def create_dataframe_mask_from_tuple(
+    df: pd.DataFrame | Dataset2D,
+    filter_tuple: tuple[
+        Annotated[str, Field(description="The column name to filter by")],
+        Annotated[
+            Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
+            Field(description="The operator to use for the filter"),
+        ],
+        Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
+    ]
+    | None,
+) -> pd.Series:
+    column_name, operator, value = filter_tuple
+
+    if column_name not in df.columns:
+        raise ValueError(f"Column '{column_name}' not found in DataFrame")
+
+    if operator == "==":
+        return df[column_name] == value
+    elif operator == "!=":
+        return df[column_name] != value
+    elif operator == ">":
+        return df[column_name] > float(value)
+    elif operator == ">=":
+        return df[column_name] >= float(value)
+    elif operator == "<":
+        return df[column_name] < float(value)
+    elif operator == "<=":
+        return df[column_name] <= float(value)
+    elif operator == "isin":
+        value = [value] if not isinstance(value, list) else value
+        return df[column_name].isin(value)
+    elif operator == "notin":
+        value = [value] if not isinstance(value, list) else value
+        return ~df[column_name].isin(value)
+    else:
+        raise ValueError(f"Unknown operator: {operator}")
+
+
 def get_descriptive_stats(
     path: Annotated[str, Field(description="Absolute path or URL to the AnnData file (.h5ad or .zarr)")],
     attribute: Annotated[
@@ -40,10 +79,26 @@ def get_descriptive_stats(
     return_value_counts_for_categorical: Annotated[
         bool, Field(description="Whether to return the value counts for categorical columns.")
     ] = False,
+    obs_filter: Annotated[
+        tuple[
+            Annotated[str, Field(description="The column name to filter by")],
+            Annotated[
+                Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
+                Field(description="The operator to use for the filter"),
+            ],
+            Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
+        ]
+        | None,
+        Field(description="A filter to apply to the obs dataframe."),
+    ] = None,
 ) -> ExplorationResult:
     """Provide basic descriptive statistics (e.g., count, mean, std, min, max, etc. or value counts) for an attribute or attribute value of an AnnData object."""
     try:
         adata = read_lazy_general(path)
+
+        if obs_filter is not None:
+            mask = create_dataframe_mask_from_tuple(adata.obs, obs_filter)
+            adata = adata[mask]
 
         attr_obj = getattr(adata, attribute, None)
         error = None
