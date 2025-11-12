@@ -1,5 +1,8 @@
 """Tests for anndata_mcp MCP server application."""
 
+import pytest
+from fastmcp import Client
+
 import anndata_mcp
 from anndata_mcp.mcp import mcp
 
@@ -33,35 +36,43 @@ def test_mcp_server_has_tools():
         assert tool_name in tools.__all__
 
 
-def test_mcp_server_tools_work_with_dummy_data(tmp_path):
+@pytest.mark.asyncio
+async def test_mcp_server_tools_work_with_dummy_data(tmp_path):
     """Test that MCP server tools work correctly with dummy AnnData."""
     # Create a dummy AnnData file
     adata = create_dummy_anndata()
     test_file = tmp_path / "test_anndata.h5ad"
     adata.write_h5ad(test_file)
 
-    # Test get_summary tool
-    from anndata_mcp.tools._summary import get_summary
+    # Register tools with mcp instance (similar to how main.py does it)
+    from anndata_mcp import tools
 
-    summary = get_summary(test_file)
-    assert summary.n_obs == 100
-    assert summary.n_vars == 50
-    assert summary.X_type is not None
-    assert len(summary.obs_columns) > 0
-    assert len(summary.var_columns) > 0
+    for name in tools.__all__:
+        tool_func = getattr(tools, name)
+        mcp.tool(tool_func)
 
-    # Test get_descriptive_stats tool
-    from anndata_mcp.tools._exploration import get_descriptive_stats
-
-    result = get_descriptive_stats(test_file, attribute="X")
-    assert result.error is None
-    assert result.description is not None
-
-    # Test view_raw_data tool
-    from anndata_mcp.tools._view import DataView, view_raw_data
-
-    result = view_raw_data(test_file, attribute="X")
-    assert isinstance(result, str | DataView)
-    if isinstance(result, DataView):
+    # Test tools via MCP Client
+    async with Client(mcp) as client:
+        # Test get_summary tool
+        result = await client.call_tool("get_summary", {"path": str(test_file)})
         assert result.data is not None
-        assert result.data_type is not None
+        summary = result.data
+        assert summary.n_obs == 100
+        assert summary.n_vars == 50
+        assert summary.X_type is not None
+        assert len(summary.obs_columns) > 0
+        assert len(summary.var_columns) > 0
+
+        # Test get_descriptive_stats tool
+        result = await client.call_tool("get_descriptive_stats", {"path": str(test_file), "attribute": "X"})
+        assert result.data is not None
+        stats_result = result.data
+        assert stats_result.error is None
+        assert stats_result.description is not None
+
+        # Test view_raw_data tool
+        result = await client.call_tool("view_raw_data", {"path": str(test_file), "attribute": "X"})
+        assert result.data is not None
+        view_result = result.data
+        assert view_result.data is not None or isinstance(view_result.data, str)
+        assert view_result.data_type is not None
