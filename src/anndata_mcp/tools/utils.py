@@ -1,3 +1,4 @@
+import fnmatch
 import os
 from pathlib import Path
 from typing import Any
@@ -202,3 +203,23 @@ def extract_data_from_dataset2d(
         return truncate_string(data.to_csv(index=index)), str(data.shape)
     else:
         return truncate_string(data.to_csv(index=index))
+
+
+def select_by_glob(items: list[str] | pd.Index, pattern: str):
+    """Select items from a list or index matching a glob pattern."""
+    return fnmatch.filter(items, pattern)
+
+
+def match_patterns(items: list[str] | pd.Index, pattern_list: list[str]) -> tuple[list[str], str | None]:
+    """Match items to patterns and return the matched items and a message listing any patterns that were not found."""
+    result = []
+    errors = []
+    for pattern in pattern_list:
+        selected = select_by_glob(items, pattern)
+        if len(selected) == 0:
+            errors.append(pattern)
+            continue
+        result.extend(selected)
+    # Remove duplicates while preserving order
+    result = list(dict.fromkeys(result))
+    return result, f"No matches found for: {', '.join(errors)}" if len(errors) > 0 else None

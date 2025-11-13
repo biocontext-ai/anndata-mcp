@@ -21,6 +21,7 @@ from anndata_mcp.tools.utils import (
     extract_original_type_string,
     extract_slice_from_dask_array,
     get_shape_str,
+    match_patterns,
     parse_slice,
     raw_type_to_string,
     truncate_string,
@@ -310,3 +311,63 @@ def test_extract_data_from_dataset2d():
     # Test single column
     result, shape = extract_data_from_dataset2d(dataset2d, ["a"], return_shape=True)
     assert shape == "(3, 1)"
+
+
+def test_match_patterns():
+    """Test match_patterns function with various scenarios."""
+    items = ["gene_1", "gene_2", "RE_1", "RE_2", "CD4", "CD8", "cell_marker"]
+
+    # Test basic glob pattern matching
+    result, error_msg = match_patterns(items, ["gene_*"])
+    assert len(result) == 2
+    assert "gene_1" in result
+    assert "gene_2" in result
+    assert error_msg is None
+
+    # Test multiple patterns, all matching
+    result, error_msg = match_patterns(items, ["RE_*", "CD*"])
+    assert len(result) == 4  # RE_1, RE_2, CD4, CD8
+    assert "RE_1" in result
+    assert "RE_2" in result
+    assert "CD4" in result
+    assert "CD8" in result
+    assert error_msg is None
+
+    # Test multiple patterns, some not matching
+    result, error_msg = match_patterns(items, ["RE_*", "nonexistent*", "CD*"])
+    assert len(result) == 4  # RE_1, RE_2, CD4, CD8
+    assert "nonexistent*" in error_msg
+    assert error_msg == "No matches found for: nonexistent*"
+
+    # Test exact match (no glob)
+    result, error_msg = match_patterns(items, ["CD4"])
+    assert len(result) == 1
+    assert result == ["CD4"]
+    assert error_msg is None
+
+    # Test empty pattern list
+    result, error_msg = match_patterns(items, [])
+    assert len(result) == 0
+    assert error_msg is None
+
+    # Test no patterns matching
+    result, error_msg = match_patterns(items, ["xyz*", "abc"])
+    assert len(result) == 0
+    assert "xyz*" in error_msg
+    assert "abc" in error_msg
+
+    # Test duplicate matches (multiple patterns matching same item)
+    result, error_msg = match_patterns(items, ["gene_*", "gene_1"])
+    # Both patterns match "gene_1", but duplicates are removed
+    assert result.count("gene_1") == 1
+    assert result.count("gene_2") == 1
+    assert len(result) == 2  # gene_1 and gene_2, no duplicates
+    assert error_msg is None
+
+    # Test with pandas Index
+    index = pd.Index(items)
+    result, error_msg = match_patterns(index, ["RE_*"])
+    assert len(result) == 2
+    assert "RE_1" in result
+    assert "RE_2" in result
+    assert error_msg is None

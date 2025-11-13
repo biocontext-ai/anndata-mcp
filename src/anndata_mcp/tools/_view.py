@@ -11,6 +11,7 @@ from anndata_mcp.tools.utils import (
     extract_data_from_dataset2d,
     extract_original_type_string,
     get_shape_str,
+    match_patterns,
     read_lazy_general,
     truncate_string,
 )
@@ -43,7 +44,7 @@ def view_raw_data(
     columns_or_genes: Annotated[
         list[str] | None,
         Field(
-            description="Column names or gene names to select. For pandas.DataFrame attributes (e.g., obs, var), these are column names. For 'X' or 'layers' attributes, these are gene names (from var_names) and are used instead of col_start_index/col_stop_index. If None, the entire attribute is considered or col_start_index/col_stop_index is used.",
+            description="Column names or gene names to select. For pandas.DataFrame attributes (e.g., obs, var), these are column names. For 'X' or 'layers' attributes, these are gene names (from var_names) and are used instead of col_start_index/col_stop_index. If None, the entire attribute is considered or col_start_index/col_stop_index is used. Also accepts glob-like patterns as input, e.g. ['RE*', 'CD4*'].",
         ),
     ] = None,
     row_start_index: Annotated[
@@ -87,24 +88,35 @@ def view_raw_data(
                 error = f"Attribute {attribute} with key {key} not found"
 
         if error is None:
+            slice_shape = None
+            full_shape = None
             if isinstance(attr_obj, Dataset2D):
                 # Use columns_or_genes as column names for Dataset2D, or all columns if None
-                selected_columns = columns_or_genes if columns_or_genes is not None else attr_obj.columns.tolist()
-                data, slice_shape = extract_data_from_dataset2d(
-                    attr_obj, selected_columns, row_slice, index=True, return_shape=True
+                available_columns = attr_obj.columns.tolist()
+                selected_columns = (
+                    match_patterns(available_columns, columns_or_genes)[0]
+                    if columns_or_genes is not None
+                    else available_columns
                 )
+                if len(selected_columns) == 0:
+                    error = "None of the provided columns were found in the attribute"
+                else:
+                    data, slice_shape = extract_data_from_dataset2d(
+                        attr_obj, selected_columns, row_slice, index=True, return_shape=True
+                    )
                 full_shape = str(attr_obj.shape)
             elif isinstance(attr_obj, Array):
                 if attribute in ("X", "layers") and columns_or_genes is not None:
                     # Convert gene names to indices for X and layers
                     var_names = adata.var_names.tolist()
-                    gene_indices = [var_names.index(gene) for gene in columns_or_genes if gene in var_names]
-                    if not gene_indices:
-                        adata.file.close()
-                        return "None of the provided genes were found in var_names"
-                    data, slice_shape = extract_data_from_dask_array_with_indices(
-                        attr_obj, row_slice, gene_indices, return_shape=True
-                    )
+                    columns_or_genes, _ = match_patterns(var_names, columns_or_genes)
+                    if len(columns_or_genes) == 0:
+                        error = "None of the provided genes were found in var_names"
+                    else:
+                        gene_indices = [var_names.index(gene) for gene in columns_or_genes]
+                        data, slice_shape = extract_data_from_dask_array_with_indices(
+                            attr_obj, row_slice, gene_indices, return_shape=True
+                        )
                 else:
                     data, slice_shape = extract_data_from_dask_array(attr_obj, row_slice, col_slice, return_shape=True)
                 full_shape = str(attr_obj.shape)
@@ -120,8 +132,6 @@ def view_raw_data(
                     if hasattr(attr_obj, "keys")
                     else str(attr_obj)
                 )
-                slice_shape = None
-                full_shape = None
             attr_obj_type = extract_original_type_string(attr_obj, full_name=True)
             result = DataView(data=data, data_type=attr_obj_type, slice_shape=slice_shape, full_shape=full_shape)
         else:

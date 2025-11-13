@@ -9,7 +9,7 @@ from anndata._core.xarray import Dataset2D
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
-from anndata_mcp.tools.utils import read_lazy_general, truncate_string
+from anndata_mcp.tools.utils import match_patterns, read_lazy_general, truncate_string
 
 
 class ExplorationResult(BaseModel):
@@ -32,27 +32,29 @@ def create_dataframe_mask_from_tuple(
 ) -> pd.Series:
     column_name, operator, value = filter_tuple
 
-    if column_name not in df.columns:
+    if (column_name not in df.columns) and (column_name != "index"):
         raise ValueError(f"Column '{column_name}' not found in DataFrame")
 
+    series = df[column_name] if column_name != "index" else df.index
+
     if operator == "==":
-        return df[column_name] == value
+        return series == value
     elif operator == "!=":
-        return df[column_name] != value
+        return series != value
     elif operator == ">":
-        return df[column_name] > float(value)
+        return series > float(value)
     elif operator == ">=":
-        return df[column_name] >= float(value)
+        return series >= float(value)
     elif operator == "<":
-        return df[column_name] < float(value)
+        return series < float(value)
     elif operator == "<=":
-        return df[column_name] <= float(value)
+        return series <= float(value)
     elif operator == "isin":
         value = [value] if not isinstance(value, list) else value
-        return df[column_name].isin(value)
+        return series.isin(value)
     elif operator == "notin":
         value = [value] if not isinstance(value, list) else value
-        return ~df[column_name].isin(value)
+        return ~series.isin(value)
     else:
         raise ValueError(f"Unknown operator: {operator}")
 
@@ -73,7 +75,7 @@ def get_descriptive_stats(
     columns_or_genes: Annotated[
         list[str] | None,
         Field(
-            description="The columns to describe. For pandas.DataFrame attributes (e.g., obs, var), these are column names. For 'X' or 'layers' attributes, these are gene names (from var_names). If None, the entire dataset is considered."
+            description="The columns or genes to describe. For pandas.DataFrame attributes (e.g., obs, var), these are column names. For 'X' or 'layers' attributes, these are gene names (from var_names). If None, the entire dataset is considered. Also accepts glob-like patterns as input, e.g. ['RE*', 'CD4*']."
         ),
     ] = None,
     return_value_counts_for_categorical: Annotated[
@@ -91,14 +93,30 @@ def get_descriptive_stats(
         | None,
         Field(description="A filter to apply to the obs dataframe."),
     ] = None,
+    var_filter: Annotated[
+        tuple[
+            Annotated[str, Field(description="The column name to filter by or 'index' for the var_names")],
+            Annotated[
+                Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
+                Field(description="The operator to use for the filter"),
+            ],
+            Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
+        ]
+        | None,
+        Field(description="A filter to apply to the var dataframe."),
+    ] = None,
 ) -> ExplorationResult:
-    """Provide basic descriptive statistics (e.g., count, mean, std, min, max, etc. or value counts) for an attribute or attribute value of an AnnData object."""
+    """Provide basic descriptive statistics (e.g., count, mean, std, min, max, etc. or value counts) for an attribute or attribute value of an optionally filtered AnnData object."""
     try:
         adata = read_lazy_general(path)
 
         if obs_filter is not None:
             mask = create_dataframe_mask_from_tuple(adata.obs, obs_filter)
             adata = adata[mask]
+
+        if var_filter is not None:
+            mask = create_dataframe_mask_from_tuple(adata.var, var_filter)
+            adata = adata[:, mask]
 
         attr_obj = getattr(adata, attribute, None)
         error = None
@@ -110,7 +128,7 @@ def get_descriptive_stats(
                 error = f"Attribute {attribute} with key {key} not found"
 
         if columns_or_genes is not None and attribute in ("X", "layers") and error is None:
-            columns_or_genes = [g for g in columns_or_genes if g in adata.var_names]
+            columns_or_genes, _ = match_patterns(adata.var_names, columns_or_genes)
             if len(columns_or_genes) == 0:
                 error = "None of the provided genes were found in var_names"
             else:
@@ -217,11 +235,12 @@ def describe_dataset2d(
     pd.DataFrame
         A DataFrame containing descriptive statistics for each column
     """
-    columns = columns or dataset2d.columns.tolist()
+    available_columns = dataset2d.columns.tolist()
+    columns = columns or available_columns
 
-    missing_columns = [col for col in set(columns) if col not in set(dataset2d.columns.tolist())]
+    missing_columns = [col for col in set(columns) if col not in set(available_columns)]
     if missing_columns:
-        return f"The following columns are not present in the dataframe: {missing_columns}"
+        raise ValueError(f"The following columns are not present in the dataframe: {missing_columns}")
 
     stats_dict = {}
     is_numeric_list = []
@@ -376,7 +395,11 @@ def value_counts_dataset2d(dataset2d: Dataset2D, columns: list[str] | None = Non
         value counts for all categorical columns. Numeric columns are skipped.
     """
     # Validate columns exist
-    columns = columns or dataset2d.columns.tolist()
+    available_columns = dataset2d.columns.tolist()
+    columns = columns or available_columns
+    missing_columns = [col for col in set(columns) if col not in set(available_columns)]
+    if missing_columns:
+        raise ValueError(f"The following columns are not present in the dataframe: {missing_columns}")
 
     # Identify categorical columns (non-numeric)
     categorical_columns = []
