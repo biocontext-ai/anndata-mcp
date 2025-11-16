@@ -100,7 +100,9 @@ def view_raw_data(
         adata = read_lazy_general(path)
 
         attr_obj = getattr(adata, attribute, None)
-        if key is not None and attr_obj is not None:
+        if attr_obj is None:
+            error = f"Attribute {attribute} not found"
+        elif key is not None:
             try:
                 attr_obj = attr_obj[key]
             except KeyError:
@@ -131,7 +133,7 @@ def view_raw_data(
                         data, slice_shape = extract_data_from_dataset2d(
                             attr_obj, selected_columns, row_slice, index=True, return_shape=True
                         )
-                    full_shape = str(attr_obj.shape)
+                        full_shape = str(attr_obj.shape)
                 elif isinstance(attr_obj, Array):
                     if attribute in ("X", "layers") and columns_or_genes is not None:
                         # Convert gene names to indices for X and layers
