@@ -20,6 +20,7 @@ from anndata_mcp.tools.utils import (
     extract_original_type,
     extract_original_type_string,
     extract_slice_from_dask_array,
+    get_nested_key,
     get_shape_str,
     match_patterns,
     parse_slice,
@@ -371,3 +372,94 @@ def test_match_patterns():
     assert "RE_1" in result
     assert "RE_2" in result
     assert error_msg is None
+
+
+def test_get_nested_key():
+    """Test get_nested_key functionality with various data structures."""
+    # Test simple dict access
+    obj = {"a": 1}
+    assert get_nested_key(obj, ["a"]) == 1
+
+    # Test nested dict access
+    obj = {"level1": {"level2": {"level3": "value"}}}
+    assert get_nested_key(obj, ["level1", "level2", "level3"]) == "value"
+    assert get_nested_key(obj, ["level1", "level2"]) == {"level3": "value"}
+    assert get_nested_key(obj, ["level1"]) == {"level2": {"level3": "value"}}
+
+    # Test mixed nested dict
+    obj = {"a": {"b": 1, "c": {"d": 2}}}
+    assert get_nested_key(obj, ["a", "b"]) == 1
+    assert get_nested_key(obj, ["a", "c", "d"]) == 2
+
+    # Test object attributes
+    class TestObj:
+        def __init__(self):
+            self.attr1 = "value1"
+            self.attr2 = TestObj2()
+
+    class TestObj2:
+        def __init__(self):
+            self.nested_attr = "nested_value"
+
+    obj = TestObj()
+    assert get_nested_key(obj, ["attr1"]) == "value1"
+    assert get_nested_key(obj, ["attr2", "nested_attr"]) == "nested_value"
+
+    # Test mixed dict and attribute access
+    class MixedObj:
+        def __init__(self):
+            self.data = {"nested": {"key": "value"}}
+
+    obj = MixedObj()
+    assert get_nested_key(obj, ["data", "nested", "key"]) == "value"
+
+    # Test dict with nested object
+    class NestedObj:
+        def __init__(self):
+            self.value = 42
+
+    obj = {"level1": NestedObj()}
+    assert get_nested_key(obj, ["level1", "value"]) == 42
+
+    # Test dict-like object that supports indexing
+    class DictLike:
+        def __init__(self):
+            self._data = {"key": "value"}
+
+        def __getitem__(self, key):
+            return self._data[key]
+
+        def __contains__(self, key):
+            return key in self._data
+
+    obj = {"level1": DictLike()}
+    assert get_nested_key(obj, ["level1", "key"]) == "value"
+
+    # Test complex nested structure
+    class ComplexObj:
+        def __init__(self):
+            self.metadata = {
+                "info": {
+                    "author": "test",
+                    "version": {"major": 1, "minor": 0},
+                }
+            }
+
+    obj = ComplexObj()
+    assert get_nested_key(obj, ["metadata", "info", "author"]) == "test"
+    assert get_nested_key(obj, ["metadata", "info", "version", "major"]) == 1
+    assert get_nested_key(obj, ["metadata", "info", "version", "minor"]) == 0
+
+    # Test error handling
+    obj = {"a": {"b": 1}}
+    with pytest.raises(KeyError, match="Key path 'missing' not found"):
+        get_nested_key(obj, ["missing"])
+
+    with pytest.raises(KeyError, match="Key path 'a -> missing' not found"):
+        get_nested_key(obj, ["a", "missing"])
+
+    with pytest.raises(KeyError, match="Key path 'a -> b -> missing' not found"):
+        get_nested_key(obj, ["a", "b", "missing"])
+
+    # Test empty keys list (should return the object itself)
+    assert get_nested_key(obj, []) == obj
