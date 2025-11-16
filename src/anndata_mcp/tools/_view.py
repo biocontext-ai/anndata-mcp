@@ -5,6 +5,7 @@ from anndata._core.xarray import Dataset2D
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
+from anndata_mcp.tools._exploration import create_dataframe_mask_from_tuple
 from anndata_mcp.tools.utils import (
     extract_data_from_dask_array,
     extract_data_from_dask_array_with_indices,
@@ -71,6 +72,18 @@ def view_raw_data(
             description="The stop index for the column slice. Only applied to attributes or attribute values with a suitable type."
         ),
     ] = 5,
+    df_filter: Annotated[
+        tuple[
+            Annotated[str, Field(description="The column name to filter by")],
+            Annotated[
+                Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
+                Field(description="The operator to use for the filter"),
+            ],
+            Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
+        ]
+        | None,
+        Field(description="A filter to apply to the obs dataframe."),
+    ] = None,
 ) -> DataView:
     """View the data of an AnnData object."""
     try:
@@ -79,6 +92,11 @@ def view_raw_data(
         col_slice = slice(col_start_index, col_stop_index, None)
 
         adata = read_lazy_general(path)
+
+        if df_filter is not None:
+            mask = create_dataframe_mask_from_tuple(adata.obs, df_filter)
+            adata = adata[mask]
+
         attr_obj = getattr(adata, attribute, None)
         if key is not None and attr_obj is not None:
             try:

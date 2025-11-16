@@ -487,6 +487,49 @@ class TestViewRawData:
             keyword in error_lower for keyword in ["file", "not found", "no such file", "cannot find", "does not exist"]
         )
 
+    def test_view_raw_data_with_df_filter_equals(self, test_h5ad_path):
+        """Test view_raw_data with df_filter using == operator."""
+        result = view_raw_data(str(test_h5ad_path), attribute="obs", df_filter=("cell_type", "==", "TypeA"))
+
+        assert isinstance(result, DataView)
+        assert result.error is None
+        assert result.data is not None
+        assert result.data_type is not None
+
+    def test_view_raw_data_with_df_filter_greater_than(self, test_h5ad_path):
+        """Test view_raw_data with df_filter using > operator."""
+        result = view_raw_data(str(test_h5ad_path), attribute="obs", df_filter=("n_genes", ">", 30))
+
+        assert isinstance(result, DataView)
+        assert result.error is None
+        assert result.data is not None
+
+    def test_view_raw_data_with_df_filter_and_X_attribute(self, test_h5ad_path):
+        """Test view_raw_data with df_filter applied to X attribute."""
+        result = view_raw_data(str(test_h5ad_path), attribute="X", df_filter=("n_genes", ">", 30))
+
+        assert isinstance(result, DataView)
+        assert result.error is None
+        assert result.data is not None
+
+    def test_view_raw_data_with_df_filter_isin(self, test_h5ad_path):
+        """Test view_raw_data with df_filter using isin operator."""
+        result = view_raw_data(
+            str(test_h5ad_path), attribute="obs", df_filter=("cell_type", "isin", ["TypeA", "TypeB"])
+        )
+
+        assert isinstance(result, DataView)
+        assert result.error is None
+        assert result.data is not None
+
+    def test_view_raw_data_with_df_filter_invalid_column(self, test_h5ad_path):
+        """Test view_raw_data with df_filter using invalid column name."""
+        result = view_raw_data(str(test_h5ad_path), attribute="obs", df_filter=("nonexistent_column", "==", "value"))
+
+        assert isinstance(result, DataView)
+        assert result.error is not None
+        assert "not found" in result.error.lower() or "column" in result.error.lower()
+
 
 class TestLocateAnndataStores:
     """Tests for locate_anndata_stores tool."""
