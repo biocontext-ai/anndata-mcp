@@ -114,7 +114,7 @@ def view_raw_data(
                     mask = create_dataframe_mask_from_tuple(attr_obj, df_filter)
                     attr_obj = attr_obj[mask]  # Filter only this dataframe, not the whole AnnData
                 else:
-                    error = f"df_filter can only be applied to dataframe or dataframe-like attributes (e.g., obs, var), but {attribute} is of type {extract_original_type_string(attr_obj, full_name=True)}"
+                    error = f"df_filter can only be applied to dataframe or dataframe-like attributes (e.g., obs, var)"
 
             if error is None:
                 if isinstance(attr_obj, Dataset2D):
