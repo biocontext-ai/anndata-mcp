@@ -82,7 +82,7 @@ def view_raw_data(
             Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
         ]
         | None,
-        Field(description="A filter to apply to the selected dataframe. Only applicable when the attribute is a Dataset2D (e.g., obs, var)."),
+        Field(description="A filter to apply to the selected dataframe. Only applicable when the attribute is a dataframe or dataframe-like (e.g., obs, var)."),
     ] = None,
 ) -> DataView:
     """View the data of an AnnData object."""
@@ -110,7 +110,7 @@ def view_raw_data(
                     attr_obj = attr_obj[mask]  # Filter only this Dataset2D, not the whole AnnData
                 else:
                     adata.file.close()
-                    error = f"df_filter can only be applied to Dataset2D attributes (e.g., obs, var), but {attribute} is of type {extract_original_type_string(attr_obj, full_name=True)}"
+                    error = f"df_filter can only be applied to dataframe or dataframe-like attributes (e.g., obs, var), but {attribute} is of type {extract_original_type_string(attr_obj, full_name=True)}"
 
             slice_shape = None
             full_shape = None
