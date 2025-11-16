@@ -102,11 +102,12 @@ def view_raw_data(
                 error = f"Attribute {attribute} with key {key} not found"
 
         if error is None:
-            # Apply df_filter if provided - only works on Dataset2D attributes
+            # Apply df_filter if provided - filters only the Dataset2D object being viewed, not the whole AnnData
+            # This allows showing specific parts of any Dataset2D attribute (e.g., filtered rows of obs or var)
             if df_filter is not None:
                 if isinstance(attr_obj, Dataset2D):
                     mask = create_dataframe_mask_from_tuple(attr_obj, df_filter)
-                    attr_obj = attr_obj[mask]
+                    attr_obj = attr_obj[mask]  # Filter only this Dataset2D, not the whole AnnData
                 else:
                     adata.file.close()
                     error = f"df_filter can only be applied to Dataset2D attributes (e.g., obs, var), but {attribute} is of type {extract_original_type_string(attr_obj, full_name=True)}"
