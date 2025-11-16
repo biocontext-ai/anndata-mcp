@@ -102,13 +102,13 @@ def view_raw_data(
 
         attr_obj = getattr(adata, attribute, None)
         if attr_obj is None:
-            raise ValueError(f"Attribute {attribute} not found")
+            raise KeyError(f"Attribute {attribute} not found")
         
         if key is not None:
             try:
                 attr_obj = attr_obj[key]
             except KeyError:
-                raise ValueError(f"Attribute {attribute} with key {key} not found")
+                raise KeyError(f"Attribute {attribute} with key {key} not found")
 
         # Apply df_filter if provided - filters only the dataframe being viewed, not the whole AnnData
         # This allows showing specific parts of any dataframe attribute (e.g., filtered rows of obs or var)
