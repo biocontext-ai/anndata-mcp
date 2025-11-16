@@ -9,7 +9,7 @@ from anndata._core.xarray import Dataset2D
 from dask.array.core import Array
 from pydantic import BaseModel, Field
 
-from anndata_mcp.tools.utils import match_patterns, read_lazy_general, truncate_string
+from anndata_mcp.tools.utils import get_nested_key, match_patterns, read_lazy_general, truncate_string
 
 
 class ExplorationResult(BaseModel):
@@ -66,9 +66,9 @@ def get_descriptive_stats(
         Field(description="The attribute to describe"),
     ],
     key: Annotated[
-        str | None,
+        str | list[str] | None,
         Field(
-            description="The key of the attribute value to explore. Should be None for attributes X, obs, and var.",
+            description="The key of the attribute value to explore. Can be a single string or a list of strings for nested key retrieval (e.g., ['key1', 'key2'] to access attr_obj['key1']['key2']). Should be None for attributes X, obs, and var.",
             default=None,
         ),
     ] = None,
@@ -107,6 +107,11 @@ def get_descriptive_stats(
     ] = None,
 ) -> ExplorationResult:
     """Provide basic descriptive statistics (e.g., count, mean, std, min, max, etc. or value counts) for an attribute or attribute value of an optionally filtered AnnData object."""
+    error = None
+    description = None
+    value_counts = None
+    adata = None
+
     try:
         adata = read_lazy_general(path)
 
@@ -119,23 +124,26 @@ def get_descriptive_stats(
             adata = adata[:, mask]
 
         attr_obj = getattr(adata, attribute, None)
-        error = None
+        if attr_obj is None:
+            raise KeyError(f"Attribute {attribute} not found")
 
-        if key is not None and attr_obj is not None and attribute not in ("X", "obs", "var"):
+        if key is not None:
             try:
-                attr_obj = attr_obj[key]
-            except KeyError:
-                error = f"Attribute {attribute} with key {key} not found"
+                # Convert single string to list for consistent handling
+                key_list = [key] if isinstance(key, str) else key
+                attr_obj = get_nested_key(attr_obj, key_list)
+            except (KeyError, AttributeError) as err:
+                key_str = key if isinstance(key, str) else " -> ".join(key)
+                raise KeyError(f"Attribute {attribute} with key {key_str} not found") from err
 
-        if columns_or_genes is not None and attribute in ("X", "layers") and error is None:
+        if columns_or_genes is not None and attribute in ("X", "layers"):
             columns_or_genes, _ = match_patterns(adata.var_names, columns_or_genes)
             if len(columns_or_genes) == 0:
-                error = "None of the provided genes were found in var_names"
-            else:
-                indices = [adata.var_names.tolist().index(g) for g in columns_or_genes]
-                attr_obj = dask_array_to_dataset2d(attr_obj[:, indices], columns_or_genes)
+                raise ValueError("None of the provided genes were found in var_names")
+            indices = [adata.var_names.tolist().index(g) for g in columns_or_genes]
+            attr_obj = dask_array_to_dataset2d(attr_obj[:, indices], columns_or_genes)
 
-        if isinstance(attr_obj, Dataset2D) and error is None:
+        if isinstance(attr_obj, Dataset2D):
             description = describe_dataset2d(attr_obj, columns_or_genes)
             description = truncate_string(description.to_csv())
             if return_value_counts_for_categorical:
@@ -143,28 +151,28 @@ def get_descriptive_stats(
                 value_counts = truncate_string(value_counts.to_csv())
             else:
                 value_counts = None
-            error = None
-        elif isinstance(attr_obj, Array) and error is None:
+        elif isinstance(attr_obj, Array):
             description = describe_dask_array(attr_obj)
             description = truncate_string(description.to_csv())
             value_counts = None
-            error = None
         else:
-            description = None
-            value_counts = None
-            error = error or (
+            raise ValueError(
                 f"Attribute {attribute} is not a dataframe or array"
                 if key is None
                 else f"Attribute value of {attribute} for key {key} is not a dataframe or array"
             )
-        exploration_result = ExplorationResult(description=description, value_counts=value_counts, error=error)
-        adata.file.close()
-        del adata
-        gc.collect()
+
     except Exception as e:  # noqa: BLE001
+        # Catch all exceptions to ensure function always returns ExplorationResult
+        # This is intentional for API stability - all errors are returned in the error field
         error = truncate_string(str(e), max_output_len=100)
-        exploration_result = ExplorationResult(description=None, value_counts=None, error=error)
-    return exploration_result
+    finally:
+        if adata is not None:
+            adata.file.close()
+            del adata
+            gc.collect()
+
+    return ExplorationResult(description=description, value_counts=value_counts, error=error)
 
 
 def _compute_categorical_stats(dataset2d: Dataset2D, col: str) -> dict:
