@@ -12,6 +12,7 @@ from anndata_mcp.tools.utils import (
     extract_data_from_dask_array_with_indices,
     extract_data_from_dataset2d,
     extract_original_type_string,
+    get_nested_key,
     get_shape_str,
     match_patterns,
     read_lazy_general,
@@ -42,7 +43,12 @@ def view_raw_data(
         Literal["X", "obs", "var", "obsm", "varm", "obsp", "varp", "uns", "layers"],
         Field(description="The attribute to view"),
     ],
-    key: Annotated[str | None, Field(description="The key of the attribute value to view.")] = None,
+    key: Annotated[
+        str | list[str] | None,
+        Field(
+            description="The key of the attribute value to view. Can be a single string or a list of strings for nested key retrieval (e.g., ['key1', 'key2'] to access attr_obj['key1']['key2'])."
+        ),
+    ] = None,
     columns_or_genes: Annotated[
         list[str] | None,
         Field(
@@ -83,7 +89,9 @@ def view_raw_data(
             Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
         ]
         | None,
-        Field(description="A filter to apply to the selected dataframe. Only applicable when the attribute is a dataframe or dataframe-like (e.g., obs, var)."),
+        Field(
+            description="A filter to apply to the selected dataframe. Only applicable when the attribute is a dataframe or dataframe-like (e.g., obs, var)."
+        ),
     ] = None,
 ) -> DataView:
     """View the data of an AnnData object."""
@@ -103,12 +111,15 @@ def view_raw_data(
         attr_obj = getattr(adata, attribute, None)
         if attr_obj is None:
             raise KeyError(f"Attribute {attribute} not found")
-        
+
         if key is not None:
             try:
-                attr_obj = attr_obj[key]
-            except KeyError:
-                raise KeyError(f"Attribute {attribute} with key {key} not found")
+                # Convert single string to list for consistent handling
+                key_list = [key] if isinstance(key, str) else key
+                attr_obj = get_nested_key(attr_obj, key_list)
+            except (KeyError, AttributeError) as err:
+                key_str = key if isinstance(key, str) else " -> ".join(key)
+                raise KeyError(f"Attribute {attribute} with key {key_str} not found") from err
 
         # Apply df_filter if provided - filters only the dataframe being viewed, not the whole AnnData
         # This allows showing specific parts of any dataframe attribute (e.g., filtered rows of obs or var)
@@ -116,9 +127,9 @@ def view_raw_data(
             if isinstance(attr_obj, Dataset2D):
                 mask = create_dataframe_mask_from_tuple(attr_obj, df_filter)
                 # Convert mask to numpy boolean array, then to integer indices for Dataset2D indexing
-                if hasattr(mask, 'compute'):
+                if hasattr(mask, "compute"):
                     mask = mask.compute()
-                if hasattr(mask, 'values'):
+                if hasattr(mask, "values"):
                     mask_bool = np.asarray(mask.values, dtype=bool)
                 else:
                     mask_bool = np.asarray(mask, dtype=bool)
@@ -126,7 +137,9 @@ def view_raw_data(
                 indices = np.where(mask_bool)[0]
                 attr_obj = attr_obj.iloc[indices]  # Filter only this dataframe, not the whole AnnData
             else:
-                raise ValueError(f"df_filter can only be applied to dataframe or dataframe-like attributes (e.g., obs, var)")
+                raise ValueError(
+                    "df_filter can only be applied to dataframe or dataframe-like attributes (e.g., obs, var)"
+                )
 
         if isinstance(attr_obj, Dataset2D):
             # Use columns_or_genes as column names for dataframe, or all columns if None
@@ -138,7 +151,7 @@ def view_raw_data(
             )
             if len(selected_columns) == 0:
                 raise ValueError("None of the provided columns were found in the attribute")
-            
+
             data, slice_shape = extract_data_from_dataset2d(
                 attr_obj, selected_columns, row_slice, index=True, return_shape=True
             )
@@ -150,7 +163,7 @@ def view_raw_data(
                 columns_or_genes, _ = match_patterns(var_names, columns_or_genes)
                 if len(columns_or_genes) == 0:
                     raise ValueError("None of the provided genes were found in var_names")
-                
+
                 gene_indices = [var_names.index(gene) for gene in columns_or_genes]
                 data, slice_shape = extract_data_from_dask_array_with_indices(
                     attr_obj, row_slice, gene_indices, return_shape=True
@@ -170,7 +183,7 @@ def view_raw_data(
                 if hasattr(attr_obj, "keys")
                 else str(attr_obj)
             )
-        
+
         data_type = extract_original_type_string(attr_obj, full_name=True)
 
     except Exception as e:  # noqa: BLE001

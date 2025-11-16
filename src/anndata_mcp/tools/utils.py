@@ -223,3 +223,62 @@ def match_patterns(items: list[str] | pd.Index, pattern_list: list[str]) -> tupl
     # Remove duplicates while preserving order
     result = list(dict.fromkeys(result))
     return result, f"No matches found for: {', '.join(errors)}" if len(errors) > 0 else None
+
+
+def get_nested_key(obj: Any, keys: list[str]) -> Any:
+    """Retrieve a nested value from an object using a list of keys.
+
+    This function traverses through nested structures (dicts, objects with attributes, etc.)
+    using the provided list of keys. It uses `get()` for dict-like objects and `hasattr()`/`getattr()`
+    for objects with attributes where possible.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to traverse
+    keys : list[str]
+        List of keys to traverse through the nested structure
+
+    Returns
+    -------
+    Any
+        The value at the nested key path
+
+    Raises
+    ------
+    KeyError
+        If any key in the path is not found
+    AttributeError
+        If any attribute in the path is not found
+    """
+    current = obj
+    path_traversed = []
+
+    for key in keys:
+        path_traversed.append(key)
+
+        # Try dict-like access first (supports dict, Mapping, etc.)
+        if hasattr(current, "get"):
+            get_method = current.get
+            if callable(get_method):
+                if key in current:
+                    current = current[key]
+                    continue
+
+        # Try attribute access
+        if hasattr(current, key):
+            current = getattr(current, key)
+            continue
+
+        # Try direct indexing (for list-like or other indexable objects)
+        try:
+            current = current[key]
+            continue
+        except (KeyError, TypeError, IndexError):
+            pass
+
+        # If we get here, the key was not found
+        path_str = " -> ".join(path_traversed)
+        raise KeyError(f"Key path '{path_str}' not found in object")
+
+    return current
