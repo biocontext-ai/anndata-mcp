@@ -1,6 +1,7 @@
 import gc
 from typing import Annotated, Literal
 
+import numpy as np
 from anndata._core.xarray import Dataset2D
 from dask.array.core import Array
 from pydantic import BaseModel, Field
@@ -114,7 +115,16 @@ def view_raw_data(
             if df_filter is not None:
                 if isinstance(attr_obj, Dataset2D):
                     mask = create_dataframe_mask_from_tuple(attr_obj, df_filter)
-                    attr_obj = attr_obj[mask]  # Filter only this dataframe, not the whole AnnData
+                    # Convert mask to numpy boolean array, then to integer indices for Dataset2D indexing
+                    if hasattr(mask, 'compute'):
+                        mask = mask.compute()
+                    if hasattr(mask, 'values'):
+                        mask_bool = np.asarray(mask.values, dtype=bool)
+                    else:
+                        mask_bool = np.asarray(mask, dtype=bool)
+                    # Convert boolean mask to integer indices for .iloc indexing
+                    indices = np.where(mask_bool)[0]
+                    attr_obj = attr_obj.iloc[indices]  # Filter only this dataframe, not the whole AnnData
                 else:
                     error = f"df_filter can only be applied to dataframe or dataframe-like attributes (e.g., obs, var)"
 
