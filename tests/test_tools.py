@@ -505,8 +505,16 @@ class TestViewRawData:
         assert result.data is not None
 
     def test_view_raw_data_with_df_filter_and_X_attribute(self, test_h5ad_path):
-        """Test view_raw_data with df_filter applied to X attribute."""
+        """Test view_raw_data with df_filter applied to X attribute - should error since X is not Dataset2D."""
         result = view_raw_data(str(test_h5ad_path), attribute="X", df_filter=("n_genes", ">", 30))
+
+        assert isinstance(result, DataView)
+        assert result.error is not None
+        assert "df_filter can only be applied to Dataset2D" in result.error.lower() or "dataset2d" in result.error.lower()
+
+    def test_view_raw_data_with_df_filter_var(self, test_h5ad_path):
+        """Test view_raw_data with df_filter applied to var attribute."""
+        result = view_raw_data(str(test_h5ad_path), attribute="var", df_filter=("n_cells", ">", 0))
 
         assert isinstance(result, DataView)
         assert result.error is None

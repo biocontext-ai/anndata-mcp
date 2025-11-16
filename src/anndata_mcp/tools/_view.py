@@ -82,7 +82,7 @@ def view_raw_data(
             Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
         ]
         | None,
-        Field(description="A filter to apply to the obs dataframe."),
+        Field(description="A filter to apply to the selected dataframe. Only applicable when the attribute is a Dataset2D (e.g., obs, var)."),
     ] = None,
 ) -> DataView:
     """View the data of an AnnData object."""
@@ -93,10 +93,6 @@ def view_raw_data(
 
         adata = read_lazy_general(path)
 
-        if df_filter is not None:
-            mask = create_dataframe_mask_from_tuple(adata.obs, df_filter)
-            adata = adata[mask]
-
         attr_obj = getattr(adata, attribute, None)
         if key is not None and attr_obj is not None:
             try:
@@ -106,9 +102,18 @@ def view_raw_data(
                 error = f"Attribute {attribute} with key {key} not found"
 
         if error is None:
+            # Apply df_filter if provided - only works on Dataset2D attributes
+            if df_filter is not None:
+                if isinstance(attr_obj, Dataset2D):
+                    mask = create_dataframe_mask_from_tuple(attr_obj, df_filter)
+                    attr_obj = attr_obj[mask]
+                else:
+                    adata.file.close()
+                    error = f"df_filter can only be applied to Dataset2D attributes (e.g., obs, var), but {attribute} is of type {extract_original_type_string(attr_obj, full_name=True)}"
+
             slice_shape = None
             full_shape = None
-            if isinstance(attr_obj, Dataset2D):
+            if error is None and isinstance(attr_obj, Dataset2D):
                 # Use columns_or_genes as column names for Dataset2D, or all columns if None
                 available_columns = attr_obj.columns.tolist()
                 selected_columns = (
