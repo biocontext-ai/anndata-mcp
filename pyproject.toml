@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "anndata-mcp"
-version = "0.2.8"
+version = "0.2.9"
 description = "Allows to retrieve information about an AnnData object via MCP"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -35,6 +35,7 @@ dependencies = [
 optional-dependencies.dev = [
   "jupyter",
   "pre-commit",
+  "ruff",
   "scanpy",
   "session-info2",
   "twine>=4.0.2",
