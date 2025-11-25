@@ -510,7 +510,10 @@ class TestViewRawData:
 
         assert isinstance(result, DataView)
         assert result.error is not None
-        assert "df_filter can only be applied to dataframe" in result.error.lower() or "dataframe-like" in result.error.lower()
+        assert (
+            "df_filter can only be applied to dataframe" in result.error.lower()
+            or "dataframe-like" in result.error.lower()
+        )
 
     def test_view_raw_data_with_df_filter_var(self, test_h5ad_path):
         """Test view_raw_data with df_filter applied to var attribute."""
