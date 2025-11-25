@@ -81,29 +81,20 @@ def get_descriptive_stats(
     return_value_counts_for_categorical: Annotated[
         bool, Field(description="Whether to return the value counts for categorical columns.")
     ] = False,
-    obs_filter: Annotated[
-        tuple[
-            Annotated[str, Field(description="The column name to filter by")],
-            Annotated[
-                Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
-                Field(description="The operator to use for the filter"),
-            ],
-            Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
-        ]
-        | None,
-        Field(description="A filter to apply to the obs dataframe."),
+    filter_attribute: Annotated[
+        Literal["obs", "var"],
+        Field(description="The attribute to filter by. One of 'obs' or 'var'."),
     ] = None,
-    var_filter: Annotated[
-        tuple[
-            Annotated[str, Field(description="The column name to filter by or 'index' for the var_names")],
-            Annotated[
-                Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
-                Field(description="The operator to use for the filter"),
-            ],
-            Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
-        ]
-        | None,
-        Field(description="A filter to apply to the var dataframe."),
+    filter_column: Annotated[
+        str,
+        Field(description="The column name of the obs or var dataframe to filter by."),
+    ] = None,
+    filter_operator: Annotated[
+        Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
+        Field(description="The operator to use for the filter."),
+    ] = None,
+    filter_value: Annotated[
+        list[str | float | bool] | str | float | bool | None, Field(description="The value(s) to filter by.")
     ] = None,
 ) -> ExplorationResult:
     """Provide basic descriptive statistics (e.g., count, mean, std, min, max, etc. or value counts) for an attribute or attribute value of an optionally filtered AnnData object."""
@@ -115,13 +106,56 @@ def get_descriptive_stats(
     try:
         adata = read_lazy_general(path)
 
-        if obs_filter is not None:
-            mask = create_dataframe_mask_from_tuple(adata.obs, obs_filter)
-            adata = adata[mask]
+        # Apply filter if provided
+        if filter_attribute is not None:
+            # Validate that all filter parameters are provided together
+            if filter_column is None or filter_operator is None or filter_value is None:
+                raise ValueError(
+                    "If filter_attribute is provided, filter_column, filter_operator, and filter_value must also be provided"
+                )
 
-        if var_filter is not None:
-            mask = create_dataframe_mask_from_tuple(adata.var, var_filter)
-            adata = adata[:, mask]
+            # Construct filter tuple
+            filter_tuple = (filter_column, filter_operator, filter_value)
+
+            # Get the appropriate dataframe based on filter_attribute
+            if filter_attribute == "obs":
+                df = adata.obs
+            elif filter_attribute == "var":
+                df = adata.var
+            else:
+                raise ValueError(f"filter_attribute must be 'obs' or 'var', got '{filter_attribute}'")
+
+            # Create mask using the helper function
+            mask = create_dataframe_mask_from_tuple(df, filter_tuple)
+
+            # Convert mask if needed (for Dataset2D/lazy-loaded data)
+            # AnnData accepts pandas Series or numpy arrays for boolean indexing
+            if hasattr(mask, "compute"):
+                # If mask is a dask array, compute it first
+                mask = mask.compute()
+            if isinstance(mask, pd.Series):
+                # Keep pandas Series as-is (AnnData handles this)
+                pass
+            elif hasattr(mask, "values"):
+                # Convert to pandas Series to preserve index alignment
+                mask = pd.Series(mask.values, index=df.index, dtype=bool)
+            elif not isinstance(mask, np.ndarray | pd.Series):
+                # Convert other types to numpy array
+                mask = np.asarray(mask, dtype=bool)
+
+            # Apply mask to AnnData
+            if filter_attribute == "obs":
+                adata = adata[mask]
+            else:  # filter_attribute == "var"
+                adata = adata[:, mask]
+
+            # Check if filtering resulted in zero-sized dimensions
+            if adata.n_obs == 0:
+                raise ValueError(
+                    "Filtering resulted in an empty dataset: no observations (cells) remain after filtering"
+                )
+            if adata.n_vars == 0:
+                raise ValueError("Filtering resulted in an empty dataset: no variables (genes) remain after filtering")
 
         attr_obj = getattr(adata, attribute, None)
         if attr_obj is None:

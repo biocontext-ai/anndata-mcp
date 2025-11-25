@@ -79,19 +79,19 @@ def view_raw_data(
             description="The stop index for the column slice. Only applied to attributes or attribute values with a suitable type."
         ),
     ] = 5,
-    df_filter: Annotated[
-        tuple[
-            Annotated[str, Field(description="The column name to filter by")],
-            Annotated[
-                Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
-                Field(description="The operator to use for the filter"),
-            ],
-            Annotated[list[str | float | bool] | str | float | bool, Field(description="The value(s) to filter by")],
-        ]
-        | None,
+    filter_column: Annotated[
+        str | None,
         Field(
-            description="A filter to apply to the selected dataframe. Only applicable when the attribute is a dataframe or dataframe-like (e.g., obs, var)."
+            description="The column name of the dataframe to filter by. Only applicable when the selected attribute (or attribute value) is a dataframe."
         ),
+    ] = None,
+    filter_operator: Annotated[
+        Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"] | None,
+        Field(description="The operator to use for the dataframe filter."),
+    ] = None,
+    filter_value: Annotated[
+        list[str | float | bool] | str | float | bool | None,
+        Field(description="The value(s) to filter the dataframe by."),
     ] = None,
 ) -> DataView:
     """View the data of an AnnData object."""
@@ -121,11 +121,29 @@ def view_raw_data(
                 key_str = key if isinstance(key, str) else " -> ".join(key)
                 raise KeyError(f"Attribute {attribute} with key {key_str} not found") from err
 
-        # Apply df_filter if provided - filters only the dataframe being viewed, not the whole AnnData
+        # Apply filter if provided - filters only the dataframe being viewed, not the whole AnnData
         # This allows showing specific parts of any dataframe attribute (e.g., filtered rows of obs or var)
-        if df_filter is not None:
+        if any([filter_column is not None, filter_operator is not None, filter_value is not None]):
+            # Validate that all filter parameters are provided together
+            missing = [
+                name
+                for name, val in [
+                    ("filter_column", filter_column),
+                    ("filter_operator", filter_operator),
+                    ("filter_value", filter_value),
+                ]
+                if val is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"If any filter parameter is provided, all must be provided. Missing: {', '.join(missing)}"
+                )
+
+            # Construct filter tuple
+            filter_tuple = (filter_column, filter_operator, filter_value)
+
             if isinstance(attr_obj, Dataset2D):
-                mask = create_dataframe_mask_from_tuple(attr_obj, df_filter)
+                mask = create_dataframe_mask_from_tuple(attr_obj, filter_tuple)
                 # Convert mask to numpy boolean array, then to integer indices for Dataset2D indexing
                 if hasattr(mask, "compute"):
                     mask = mask.compute()
@@ -135,10 +153,12 @@ def view_raw_data(
                     mask_bool = np.asarray(mask, dtype=bool)
                 # Convert boolean mask to integer indices for .iloc indexing
                 indices = np.where(mask_bool)[0]
+                if len(indices) == 0:
+                    raise ValueError("Filtering resulted in an empty dataframe: no rows remain after filtering")
                 attr_obj = attr_obj.iloc[indices]  # Filter only this dataframe, not the whole AnnData
             else:
                 raise ValueError(
-                    "df_filter can only be applied to dataframe or dataframe-like attributes (e.g., obs, var)"
+                    "Filtering can only be applied to dataframe or dataframe-like attributes (e.g., obs, var)"
                 )
 
         if isinstance(attr_obj, Dataset2D):

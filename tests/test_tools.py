@@ -228,9 +228,16 @@ class TestGetDescriptiveStats:
         )
 
     def test_get_descriptive_stats_with_obs_filter_equals(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using == operator."""
+        """Test get_descriptive_stats with filter using == operator."""
         # Filter for a specific cell_type
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("cell_type", "==", "TypeA"))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="cell_type",
+            filter_operator="==",
+            filter_value="TypeA",
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -238,9 +245,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_not_equals(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using != operator."""
+        """Test get_descriptive_stats with filter using != operator."""
         # Filter for cells that are not TypeA
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("cell_type", "!=", "TypeA"))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="cell_type",
+            filter_operator="!=",
+            filter_value="TypeA",
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -248,9 +262,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_greater_than(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using > operator."""
+        """Test get_descriptive_stats with filter using > operator."""
         # Filter for cells with n_genes > 30
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("n_genes", ">", 30))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="n_genes",
+            filter_operator=">",
+            filter_value=30,
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -258,9 +279,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_greater_equal(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using >= operator."""
+        """Test get_descriptive_stats with filter using >= operator."""
         # Filter for cells with n_genes >= 30
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("n_genes", ">=", 30))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="n_genes",
+            filter_operator=">=",
+            filter_value=30,
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -268,9 +296,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_less_than(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using < operator."""
+        """Test get_descriptive_stats with filter using < operator."""
         # Filter for cells with n_genes < 30
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("n_genes", "<", 30))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="n_genes",
+            filter_operator="<",
+            filter_value=30,
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -278,9 +313,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_less_equal(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using <= operator."""
+        """Test get_descriptive_stats with filter using <= operator."""
         # Filter for cells with n_genes <= 30
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("n_genes", "<=", 30))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="n_genes",
+            filter_operator="<=",
+            filter_value=30,
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -288,10 +330,15 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_isin(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using isin operator."""
+        """Test get_descriptive_stats with filter using isin operator."""
         # Filter for cells with cell_type in [TypeA, TypeB]
         result = get_descriptive_stats(
-            str(test_h5ad_path), attribute="obs", obs_filter=("cell_type", "isin", ["TypeA", "TypeB"])
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="cell_type",
+            filter_operator="isin",
+            filter_value=["TypeA", "TypeB"],
         )
 
         assert result.error is None
@@ -300,9 +347,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_isin_single_value(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using isin operator with single value."""
+        """Test get_descriptive_stats with filter using isin operator with single value."""
         # Filter for cells with cell_type in [TypeA] (single value, not a list)
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("cell_type", "isin", "TypeA"))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="cell_type",
+            filter_operator="isin",
+            filter_value="TypeA",
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -310,10 +364,15 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_notin(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using notin operator."""
+        """Test get_descriptive_stats with filter using notin operator."""
         # Filter for cells with cell_type not in [TypeA]
         result = get_descriptive_stats(
-            str(test_h5ad_path), attribute="obs", obs_filter=("cell_type", "notin", ["TypeA"])
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="cell_type",
+            filter_operator="notin",
+            filter_value=["TypeA"],
         )
 
         assert result.error is None
@@ -322,9 +381,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_and_X_attribute(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter applied to X attribute."""
+        """Test get_descriptive_stats with filter applied to X attribute."""
         # Filter cells and then get stats for X
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="X", obs_filter=("n_genes", ">", 30))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="X",
+            filter_attribute="obs",
+            filter_column="n_genes",
+            filter_operator=">",
+            filter_value=30,
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -332,9 +398,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_and_var_attribute(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter applied to var attribute."""
+        """Test get_descriptive_stats with filter applied to var attribute."""
         # Filter cells and then get stats for var (should still work, filter affects obs)
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="var", obs_filter=("n_genes", ">", 30))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="var",
+            filter_attribute="obs",
+            filter_column="n_genes",
+            filter_operator=">",
+            filter_value=30,
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -342,9 +415,16 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_float_column(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter on float column."""
+        """Test get_descriptive_stats with filter on float column."""
         # Filter for cells with percent_mito > 0.5
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("percent_mito", ">", 0.5))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="percent_mito",
+            filter_operator=">",
+            filter_value=0.5,
+        )
 
         assert result.error is None
         assert result.description is not None
@@ -352,22 +432,30 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_invalid_column(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter using invalid column name."""
+        """Test get_descriptive_stats with filter using invalid column name."""
         # Filter with non-existent column
         result = get_descriptive_stats(
-            str(test_h5ad_path), attribute="obs", obs_filter=("nonexistent_column", "==", "value")
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="nonexistent_column",
+            filter_operator="==",
+            filter_value="value",
         )
 
         assert result.error is not None
         assert "not found" in result.error.lower() or "column" in result.error.lower()
 
     def test_get_descriptive_stats_with_obs_filter_and_columns(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter and columns_or_genes."""
+        """Test get_descriptive_stats with filter and columns_or_genes."""
         # Filter cells and get stats for specific columns
         result = get_descriptive_stats(
             str(test_h5ad_path),
             attribute="obs",
-            obs_filter=("cell_type", "==", "TypeA"),
+            filter_attribute="obs",
+            filter_column="cell_type",
+            filter_operator="==",
+            filter_value="TypeA",
             columns_or_genes=["n_genes", "n_counts"],
         )
 
@@ -377,13 +465,59 @@ class TestGetDescriptiveStats:
         assert len(result.description) > 0
 
     def test_get_descriptive_stats_with_obs_filter_empty_result(self, test_h5ad_path):
-        """Test get_descriptive_stats with obs_filter that results in empty dataset."""
+        """Test get_descriptive_stats with filter that results in empty dataset."""
         # Filter for a value that likely doesn't exist (very high n_genes)
-        result = get_descriptive_stats(str(test_h5ad_path), attribute="obs", obs_filter=("n_genes", ">", 1000000))
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="obs",
+            filter_column="n_genes",
+            filter_operator=">",
+            filter_value=1000000,
+        )
 
-        # Should still return without error, but description might be empty or indicate no data
+        # Should return an error indicating empty dataset
         assert result is not None
-        # The result may or may not have an error depending on how empty datasets are handled
+        assert result.error is not None
+        assert "empty dataset" in result.error.lower()
+        assert "no observations" in result.error.lower() or "no cells" in result.error.lower()
+        assert result.description is None
+
+    def test_get_descriptive_stats_with_var_filter(self, test_h5ad_path):
+        """Test get_descriptive_stats with var filter."""
+        # Filter genes and then get stats for obs
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_attribute="var",
+            filter_column="n_cells",
+            filter_operator=">",
+            filter_value=50,
+        )
+
+        assert result.error is None
+        assert result.description is not None
+        assert isinstance(result.description, str)
+        assert len(result.description) > 0
+
+    def test_get_descriptive_stats_with_var_filter_empty_result(self, test_h5ad_path):
+        """Test get_descriptive_stats with var filter that results in empty dataset."""
+        # Filter for a value that likely doesn't exist (very high n_cells)
+        result = get_descriptive_stats(
+            str(test_h5ad_path),
+            attribute="var",
+            filter_attribute="var",
+            filter_column="n_cells",
+            filter_operator=">",
+            filter_value=1000000,
+        )
+
+        # Should return an error indicating empty dataset
+        assert result is not None
+        assert result.error is not None
+        assert "empty dataset" in result.error.lower()
+        assert "no variables" in result.error.lower() or "no genes" in result.error.lower()
+        assert result.description is None
 
 
 class TestViewRawData:
@@ -488,8 +622,14 @@ class TestViewRawData:
         )
 
     def test_view_raw_data_with_df_filter_equals(self, test_h5ad_path):
-        """Test view_raw_data with df_filter using == operator."""
-        result = view_raw_data(str(test_h5ad_path), attribute="obs", df_filter=("cell_type", "==", "TypeA"))
+        """Test view_raw_data with filter using == operator."""
+        result = view_raw_data(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_column="cell_type",
+            filter_operator="==",
+            filter_value="TypeA",
+        )
 
         assert isinstance(result, DataView)
         assert result.error is None
@@ -497,36 +637,58 @@ class TestViewRawData:
         assert result.data_type is not None
 
     def test_view_raw_data_with_df_filter_greater_than(self, test_h5ad_path):
-        """Test view_raw_data with df_filter using > operator."""
-        result = view_raw_data(str(test_h5ad_path), attribute="obs", df_filter=("n_genes", ">", 30))
+        """Test view_raw_data with filter using > operator."""
+        result = view_raw_data(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_column="n_genes",
+            filter_operator=">",
+            filter_value=30,
+        )
 
         assert isinstance(result, DataView)
         assert result.error is None
         assert result.data is not None
 
     def test_view_raw_data_with_df_filter_and_X_attribute(self, test_h5ad_path):
-        """Test view_raw_data with df_filter applied to X attribute - should error since X is not a dataframe."""
-        result = view_raw_data(str(test_h5ad_path), attribute="X", df_filter=("n_genes", ">", 30))
+        """Test view_raw_data with filter applied to X attribute - should error since X is not a dataframe."""
+        result = view_raw_data(
+            str(test_h5ad_path),
+            attribute="X",
+            filter_column="n_genes",
+            filter_operator=">",
+            filter_value=30,
+        )
 
         assert isinstance(result, DataView)
         assert result.error is not None
         assert (
-            "df_filter can only be applied to dataframe" in result.error.lower()
+            "filter can only be applied to dataframe" in result.error.lower()
             or "dataframe-like" in result.error.lower()
         )
 
     def test_view_raw_data_with_df_filter_var(self, test_h5ad_path):
-        """Test view_raw_data with df_filter applied to var attribute."""
-        result = view_raw_data(str(test_h5ad_path), attribute="var", df_filter=("n_cells", ">", 0))
+        """Test view_raw_data with filter applied to var attribute."""
+        result = view_raw_data(
+            str(test_h5ad_path),
+            attribute="var",
+            filter_column="n_cells",
+            filter_operator=">",
+            filter_value=0,
+        )
 
         assert isinstance(result, DataView)
         assert result.error is None
         assert result.data is not None
 
     def test_view_raw_data_with_df_filter_isin(self, test_h5ad_path):
-        """Test view_raw_data with df_filter using isin operator."""
+        """Test view_raw_data with filter using isin operator."""
         result = view_raw_data(
-            str(test_h5ad_path), attribute="obs", df_filter=("cell_type", "isin", ["TypeA", "TypeB"])
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_column="cell_type",
+            filter_operator="isin",
+            filter_value=["TypeA", "TypeB"],
         )
 
         assert isinstance(result, DataView)
@@ -534,12 +696,36 @@ class TestViewRawData:
         assert result.data is not None
 
     def test_view_raw_data_with_df_filter_invalid_column(self, test_h5ad_path):
-        """Test view_raw_data with df_filter using invalid column name."""
-        result = view_raw_data(str(test_h5ad_path), attribute="obs", df_filter=("nonexistent_column", "==", "value"))
+        """Test view_raw_data with filter using invalid column name."""
+        result = view_raw_data(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_column="nonexistent_column",
+            filter_operator="==",
+            filter_value="value",
+        )
 
         assert isinstance(result, DataView)
         assert result.error is not None
         assert "not found" in result.error.lower() or "column" in result.error.lower()
+
+    def test_view_raw_data_with_df_filter_empty_result(self, test_h5ad_path):
+        """Test view_raw_data with filter that results in empty dataframe."""
+        # Filter for a value that likely doesn't exist (very high n_genes)
+        result = view_raw_data(
+            str(test_h5ad_path),
+            attribute="obs",
+            filter_column="n_genes",
+            filter_operator=">",
+            filter_value=1000000,
+        )
+
+        # Should return an error indicating empty dataframe
+        assert isinstance(result, DataView)
+        assert result.error is not None
+        assert "empty dataframe" in result.error.lower()
+        assert "no rows" in result.error.lower()
+        assert result.data is None
 
 
 class TestLocateAnndataStores:

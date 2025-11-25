@@ -10,4 +10,8 @@ if os.getenv("MCP_EXPOSE_FILE_SYSTEM_TOOLS", "false").lower() in ("true", "1", "
 
     __all__ = ["locate_anndata_stores", "view_raw_data", "get_summary", "get_descriptive_stats"]
 else:
-    __all__ = ["view_raw_data", "get_summary", "get_descriptive_stats"]
+    __all__ = [
+        "view_raw_data",
+        "get_summary",
+        "get_descriptive_stats",
+    ]
