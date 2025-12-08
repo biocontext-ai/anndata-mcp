@@ -83,14 +83,16 @@ def get_descriptive_stats(
     ] = False,
     filter_attribute: Annotated[
         Literal["obs", "var"],
-        Field(description="The attribute to filter by. One of 'obs' or 'var'."),
+        Field(
+            description="The attribute to filter by. One of 'obs' or 'var' or None for no filtering. Has to be provided TOGETHER with filter_column, filter_operator, and filter_value."
+        ),
     ] = None,
     filter_column: Annotated[
-        str,
+        str | None,
         Field(description="The column name of the obs or var dataframe to filter by."),
     ] = None,
     filter_operator: Annotated[
-        Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"],
+        Literal["==", "!=", ">", ">=", "<", "<=", "isin", "notin"] | None,
         Field(description="The operator to use for the filter."),
     ] = None,
     filter_value: Annotated[
@@ -111,7 +113,7 @@ def get_descriptive_stats(
             # Validate that all filter parameters are provided together
             if filter_column is None or filter_operator is None or filter_value is None:
                 raise ValueError(
-                    "If filter_attribute is provided, filter_column, filter_operator, and filter_value must also be provided"
+                    "If filter_attribute is set, filter_column, filter_operator, and filter_value must also be provided"
                 )
 
             # Construct filter tuple
@@ -162,6 +164,10 @@ def get_descriptive_stats(
             raise KeyError(f"Attribute {attribute} not found")
 
         if key is not None:
+            if attribute in ("obs", "var", "X"):
+                raise ValueError(
+                    "The 'key' argument is not supported for 'obs', 'var', or 'X' attributes, use 'columns_or_genes' instead"
+                )
             try:
                 # Convert single string to list for consistent handling
                 key_list = [key] if isinstance(key, str) else key

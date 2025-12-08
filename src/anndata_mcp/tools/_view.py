@@ -82,7 +82,7 @@ def view_raw_data(
     filter_column: Annotated[
         str | None,
         Field(
-            description="The column name of the dataframe to filter by. Only applicable when the selected attribute (or attribute value) is a dataframe."
+            description="The column name of the dataframe to filter by. Only applicable when the selected attribute (or attribute value) is a dataframe. Must be provided TOGETHER with filter_operator and filter_value."
         ),
     ] = None,
     filter_operator: Annotated[
@@ -94,7 +94,7 @@ def view_raw_data(
         Field(description="The value(s) to filter the dataframe by."),
     ] = None,
 ) -> DataView:
-    """View the data of an AnnData object."""
+    """View the raw data of an AnnData object."""
     error = None
     data = None
     data_type = None
